@@ -513,7 +513,7 @@ public class Main {
                     break;
                 case 3:
                     System.out.println("Managing friends.");
-                    manageFriends(friendManager, scanner);
+                    handleFriendOperations(friendManager, scanner);
                     break;
                 case 4:
                     System.out.println("Requesting stock reviews.");
