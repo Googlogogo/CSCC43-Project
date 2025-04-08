@@ -11,9 +11,9 @@ public class StockListManager {
 
         while (true) {
             System.out.println("""
-                    
+
                     Welcome to Stock List Dashboard!
-                    
+
                     1. Create New Stock List
                     2. View All Stock Lists
                     3. Delete Stock List
@@ -70,6 +70,15 @@ public class StockListManager {
                     break;
                 case "8":
                     // TODO: Display Stock List Statistics
+                    System.out.println("\nDisplaying stock list statistics...");
+                    System.out.print("Enter stock list name: ");
+                    String name = scanner.nextLine();
+                    // Validate portfolio name
+                    if (invalidStockListName(name)) {
+                        System.out.println("Invalid stock list name!");
+                        break;
+                    }
+                    StatisticsManager.handleStockListStatistics(userId, name);
                     break;
                 default:
                     System.out.println("Invalid option. Please try again.");
@@ -120,7 +129,7 @@ public class StockListManager {
         String sql = "INSERT INTO StockList (user_id, name, visibility) VALUES (?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setString(2, listName);
@@ -160,7 +169,7 @@ public class StockListManager {
         String sql = "INSERT INTO SharedStockList (list_id, shared_user_id) VALUES (?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, getStockListIdByName(userId, listName));
             pstmt.setInt(2, UserManager.getIDbyUsername(username));
@@ -176,7 +185,8 @@ public class StockListManager {
 
     // Share a stock list with another user, while updating its visibility
     private void shareStockList(int userId, String listName) {
-        if (!shareStockListWithUser(userId, listName)) return;
+        if (!shareStockListWithUser(userId, listName))
+            return;
 
         // SQL query to update the visibility of the stock list
         updateStockListVisibility(userId, listName, "shared");
@@ -214,7 +224,7 @@ public class StockListManager {
         String sql = "UPDATE StockList SET name = ? WHERE list_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, newListName);
             pstmt.setInt(2, getStockListIdByName(userId, oldListName));
@@ -269,7 +279,7 @@ public class StockListManager {
         String sql = "UPDATE StockList SET visibility = ? WHERE list_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, visibility);
             pstmt.setInt(2, getStockListIdByName(userId, listName));
@@ -302,10 +312,10 @@ public class StockListManager {
         String deleteStockListSql = "DELETE FROM StockList WHERE list_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement deleteReviewsStmt = conn.prepareStatement(deleteReviewsSql);
-             PreparedStatement deleteSharedStockListStmt = conn.prepareStatement(deleteSharedStockListSql);
-             PreparedStatement deleteStockListHoldingStmt = conn.prepareStatement(deleteStockListHoldingSql);
-             PreparedStatement deleteStockListStmt = conn.prepareStatement(deleteStockListSql)) {
+                PreparedStatement deleteReviewsStmt = conn.prepareStatement(deleteReviewsSql);
+                PreparedStatement deleteSharedStockListStmt = conn.prepareStatement(deleteSharedStockListSql);
+                PreparedStatement deleteStockListHoldingStmt = conn.prepareStatement(deleteStockListHoldingSql);
+                PreparedStatement deleteStockListStmt = conn.prepareStatement(deleteStockListSql)) {
 
             // Start transaction
             conn.setAutoCommit(false);
@@ -341,15 +351,15 @@ public class StockListManager {
 
         // SQL query to fetch all stock lists for the user
         String sql = """
-            SELECT *
-            FROM StockList sl
-            LEFT JOIN SharedStockList ssl ON sl.list_id = ssl.list_id
-            WHERE sl.user_id = ? OR sl.visibility = 'public' OR (sl.visibility = 'shared' AND ssl.shared_user_id = ?)
-            ORDER BY sl.list_id ASC
-            """;
+                SELECT *
+                FROM StockList sl
+                LEFT JOIN SharedStockList ssl ON sl.list_id = ssl.list_id
+                WHERE sl.user_id = ? OR sl.visibility = 'public' OR (sl.visibility = 'shared' AND ssl.shared_user_id = ?)
+                ORDER BY sl.list_id ASC
+                """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setInt(2, userId);
@@ -409,7 +419,8 @@ public class StockListManager {
     // Manage stock list holdings
     public void manageStockListHoldings(int userId) {
         // Display the stock lists owned by the user
-        if (!displayUserStockLists(userId)) return;
+        if (!displayUserStockLists(userId))
+            return;
 
         Scanner scanner = new Scanner(System.in);
         // Prompt the user for the stock list name to manage
@@ -456,7 +467,7 @@ public class StockListManager {
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(checksql)) {
+                PreparedStatement pstmt = conn.prepareStatement(checksql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setInt(2, userId);
@@ -469,9 +480,9 @@ public class StockListManager {
             System.out.println("\nYour Available Stock Lists:");
             while (rs.next()) {
                 System.out.println("ID: " + rs.getInt("list_id") +
-                                   " - Owner: " + UserManager.getUsernameByID(rs.getInt("user_id")) +
-                                   " - Stock List: " + rs.getString("name") +
-                                   " - Visibility: " + rs.getString("visibility"));
+                        " - Owner: " + UserManager.getUsernameByID(rs.getInt("user_id")) +
+                        " - Stock List: " + rs.getString("name") +
+                        " - Visibility: " + rs.getString("visibility"));
             }
             return true;
         } catch (SQLException e) {
@@ -483,7 +494,8 @@ public class StockListManager {
     // Manage stock list reviews
     public void manageStockListReviews(int userId) {
         // Display the stock lists owned by the user
-        if (!displayUserStockLists(userId)) return;
+        if (!displayUserStockLists(userId))
+            return;
 
         Scanner scanner = new Scanner(System.in);
         System.out.print("\nEnter the ID of the stock list to manage reviews: ");
@@ -506,7 +518,7 @@ public class StockListManager {
         // Check if the stock list visibility is private
         String visibilitySql = "SELECT visibility FROM StockList WHERE list_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(visibilitySql)) {
+                PreparedStatement pstmt = conn.prepareStatement(visibilitySql)) {
 
             pstmt.setInt(1, reviewListId);
             ResultSet rs = pstmt.executeQuery();
@@ -535,14 +547,14 @@ public class StockListManager {
     // Check if the stock list is shared and accessible to the user
     private boolean isSharedAndAccessible(int userId, int listId) {
         String sql = """
-            SELECT *
-            FROM StockList sl
-            JOIN SharedStockList ssl ON sl.list_id = ssl.list_id
-            WHERE sl.visibility = 'shared' AND sl.list_id = ? AND (sl.user_id = ? OR ssl.shared_user_id = ?)
-            """;
+                SELECT *
+                FROM StockList sl
+                JOIN SharedStockList ssl ON sl.list_id = ssl.list_id
+                WHERE sl.visibility = 'shared' AND sl.list_id = ? AND (sl.user_id = ? OR ssl.shared_user_id = ?)
+                """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, listId);
             pstmt.setInt(2, userId);
@@ -561,7 +573,7 @@ public class StockListManager {
     private boolean stockListExists(int listId) {
         String sql = "SELECT * FROM StockList WHERE list_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, listId);
             ResultSet rs = pstmt.executeQuery();
@@ -574,12 +586,18 @@ public class StockListManager {
         return false; // Stock list does not exist
     }
 
+    // Portfolio name validation
+    private boolean invalidStockListName(String name) {
+        // Check if the name is empty, contains invalid characters, or exceeds length
+        return name.isEmpty() || !name.matches("[a-zA-Z0-9_ ]+") || name.length() > 50;
+    }
+
     // Get stock list ID by name
     public static int getStockListIdByName(int userId, String listName) {
         String sql = "SELECT list_id FROM StockList WHERE user_id = ? AND name = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setString(2, listName);
@@ -600,7 +618,7 @@ public class StockListManager {
         String sql = "SELECT name FROM StockList WHERE list_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, listId);
             ResultSet rs = pstmt.executeQuery();
@@ -619,7 +637,7 @@ public class StockListManager {
     private boolean checkStockListBelongsToUser(int userId, String listName) {
         String sql = "SELECT * FROM StockList WHERE user_id = ? AND name = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setString(2, listName);
@@ -645,7 +663,7 @@ public class StockListManager {
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, friendId);
             pstmt.setInt(2, userId);

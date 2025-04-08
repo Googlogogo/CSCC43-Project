@@ -4,91 +4,90 @@ import java.util.*;
 import managers.*;
 
 public class MainTest {
-    // Execute SQL file for creating tables
-    private static void executeSqlFile(String sqlFile) {
-        try (Connection conn = DatabaseConnection.getConnection();
-             Statement statement = conn.createStatement();
-             BufferedReader reader = new BufferedReader(new FileReader(sqlFile))) {
+  // Execute SQL file for creating tables
+  private static void executeSqlFile(String sqlFile) {
+    try (Connection conn = DatabaseConnection.getConnection();
+        Statement statement = conn.createStatement();
+        BufferedReader reader = new BufferedReader(new FileReader(sqlFile))) {
 
-            StringBuilder sql = new StringBuilder();
-            String line;
+      StringBuilder sql = new StringBuilder();
+      String line;
 
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
+      while ((line = reader.readLine()) != null) {
+        line = line.trim();
 
-                // Skip comments and empty lines
-                if (line.isEmpty() || line.startsWith("--")) {
-                    continue;
-                }
-
-                sql.append(line).append(" ");
-
-                // Execute when the statement is complete (ends with semicolon)
-                if (line.endsWith(";")) {
-                    statement.execute(sql.toString());
-                    sql.setLength(0); // Clear buffer
-                }
-            }
-
-            // Check if any remaining SQL without semicolon
-            if (!sql.isEmpty()) {
-                statement.execute(sql.toString());
-            }
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
+        // Skip comments and empty lines
+        if (line.isEmpty() || line.startsWith("--")) {
+          continue;
         }
-    }
 
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        UserManager userManager = new UserManager();
+        sql.append(line).append(" ");
 
-        // Create tables, remove if they exist
-        String create_database_file = "create_database.sql";
-        executeSqlFile(create_database_file);
-
-        while (true) {
-            System.out.println("""
-                    
-                    Welcome to the Portfolio and Stock List Management System!
-                    
-                    1. Register
-                    2. Login
-                    3. Quit
-                    4. View Users (Debugging)
-                    """);
-            System.out.print("Choose an option: ");
-
-            // Prevent users from inputting non-integer values
-            if (!scanner.hasNextInt()) {
-                System.out.println("Invalid option. Please try again.");
-                scanner.nextLine();
-                continue;
-            }
-
-            int choice = scanner.nextInt();
-            scanner.nextLine();
-
-            switch (choice) {
-                case 1:
-                    userManager.userRegistration();
-                    break;
-                case 2:
-                    int userId = userManager.userLogin();
-                    if (userId != -1) {
-                        userManager.userDashboard(userId);
-                    }
-                    break;
-                case 3:
-                    System.out.println("Exiting the system. Goodbye!");
-                    System.exit(0);
-                case 4:
-                    userManager.viewAllUsers();
-                    break;
-                default:
-                    System.out.println("Invalid option. Please try again.");
-            }
+        // Execute when the statement is complete (ends with semicolon)
+        if (line.endsWith(";")) {
+          statement.execute(sql.toString());
+          sql.setLength(0); // Clear buffer
         }
+      }
+
+      // Check if any remaining SQL without semicolon
+      if (!sql.isEmpty()) {
+        statement.execute(sql.toString());
+      }
+    } catch (Exception e) {
+      System.err.println(e.getMessage());
     }
+  }
+
+  public static void main(String[] args) {
+    Scanner scanner = new Scanner(System.in);
+    UserManager userManager = new UserManager();
+
+    // Create tables, remove if they exist
+    String create_database_file = "create_database.sql";
+    executeSqlFile(create_database_file);
+
+    while (true) {
+      System.out.println("""
+
+          Welcome to the Portfolio and Stock List Management System!
+
+          1. Register
+          2. Login
+          3. Quit
+          4. View Users (Debugging)
+          """);
+      System.out.print("Choose an option: ");
+
+      // Prevent users from inputting non-integer values
+      if (!scanner.hasNextInt()) {
+        System.out.println("Invalid option. Please try again.");
+        scanner.nextLine();
+        continue;
+      }
+
+      int choice = scanner.nextInt();
+      scanner.nextLine();
+
+      switch (choice) {
+        case 1:
+          userManager.userRegistration();
+          break;
+        case 2:
+          int userId = userManager.userLogin();
+          if (userId != -1) {
+            userManager.userDashboard(userId);
+          }
+          break;
+        case 3:
+          System.out.println("Exiting the system. Goodbye!");
+          System.exit(0);
+        case 4:
+          userManager.viewAllUsers();
+          break;
+        default:
+          System.out.println("Invalid option. Please try again.");
+      }
+    }
+  }
 }
-

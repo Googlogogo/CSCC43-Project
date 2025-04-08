@@ -64,7 +64,7 @@ public class ReviewManager {
 
         String query = "INSERT INTO Review (list_id, user_id, content) VALUES (?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
+                PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, listId);
             pstmt.setInt(2, userId);
             pstmt.setString(3, review);
@@ -96,7 +96,7 @@ public class ReviewManager {
                 )))
                 """;
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
+                PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, listId);
             pstmt.setInt(2, userId);
             pstmt.setInt(3, userId);
@@ -115,13 +115,13 @@ public class ReviewManager {
                 String content = rs.getString("content");
                 Timestamp createdAt = rs.getTimestamp("created_at");
                 System.out.printf("""
-                
-                Review ID: %d
-                Stock List Name: %s
-                Created By: %s
-                Content: %s
-                Created At: %s
-                """, rId, listName, UserManager.getUsernameByID(uId), content, createdAt);
+
+                        Review ID: %d
+                        Stock List Name: %s
+                        Created By: %s
+                        Content: %s
+                        Created At: %s
+                        """, rId, listName, UserManager.getUsernameByID(uId), content, createdAt);
             }
         } catch (SQLException e) {
             System.err.println("Error fetching reviews: " + e.getMessage());
@@ -144,7 +144,7 @@ public class ReviewManager {
 
         String query = "DELETE FROM Review WHERE review_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
+                PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, reviewId);
             int rowsAffected = pstmt.executeUpdate();
             if (rowsAffected > 0) {
@@ -161,7 +161,7 @@ public class ReviewManager {
     public boolean checkReviewOwnership(int reviewId, int userId, int listId) {
         String query = "SELECT * FROM Review WHERE review_id = ? AND user_id = ? AND list_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
+                PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, reviewId);
             pstmt.setInt(2, userId);
             pstmt.setInt(3, listId);
@@ -176,23 +176,23 @@ public class ReviewManager {
 
     // Check if the user has access to the review
     public boolean notHasAccessToReview(int userId, int listId) {
-       String query = """
-               SELECT *
-               FROM StockList sl
-               LEFT JOIN SharedStockList ssl ON sl.list_id = ssl.list_id
-               WHERE sl.list_id = ? AND (sl.user_id = ? OR ssl.shared_user_id = ? OR sl.visibility = 'public')
-               """;
-       try (Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement pstmt = conn.prepareStatement(query)) {
-           pstmt.setInt(1, listId);
-           pstmt.setInt(2, userId);
-           pstmt.setInt(3, userId);
+        String query = """
+                SELECT *
+                FROM StockList sl
+                LEFT JOIN SharedStockList ssl ON sl.list_id = ssl.list_id
+                WHERE sl.list_id = ? AND (sl.user_id = ? OR ssl.shared_user_id = ? OR sl.visibility = 'public')
+                """;
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, listId);
+            pstmt.setInt(2, userId);
+            pstmt.setInt(3, userId);
 
-           ResultSet rs = pstmt.executeQuery();
-           return !rs.next();
-       } catch (SQLException e) {
-           System.err.println("Error checking access to review: " + e.getMessage());
-           return true;
-       }
+            ResultSet rs = pstmt.executeQuery();
+            return !rs.next();
+        } catch (SQLException e) {
+            System.err.println("Error checking access to review: " + e.getMessage());
+            return true;
+        }
     }
 }

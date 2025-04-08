@@ -12,9 +12,9 @@ public class PortfolioManager {
 
         while (true) {
             System.out.println("""
-                    
+
                     Welcome to the Portfolio Dashboard!
-                    
+
                     1. Create a New Portfolio
                     2. Get Portfolios Overview
                     3. Rename Portfolio
@@ -103,7 +103,7 @@ public class PortfolioManager {
                         System.out.println("Invalid portfolio name!");
                         break;
                     }
-                    StatisticsManager.displayPortfolioStatistics(userId, name);
+                    StatisticsManager.handlePortfolioStatistics(userId, name);
                     break;
                 default:
                     System.out.println("Invalid option! Please try again.");
@@ -137,7 +137,7 @@ public class PortfolioManager {
         String sql = "INSERT INTO Portfolio (user_id, name, cash_balance) VALUES (?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setString(2, name);
@@ -155,7 +155,7 @@ public class PortfolioManager {
         String sql = "SELECT * FROM Portfolio WHERE user_id = ? ORDER BY portfolio_id ASC";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             ResultSet rs = pstmt.executeQuery();
@@ -212,7 +212,7 @@ public class PortfolioManager {
         String sql = "UPDATE Portfolio SET name = ? WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, newName);
             pstmt.setInt(2, getPortfolioIDbyName(userId, currentName));
@@ -248,8 +248,8 @@ public class PortfolioManager {
         String deletePortfolioSql = "DELETE FROM Portfolio WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement deletePortfolioHoldingStmt = conn.prepareStatement(deletePortfolioHoldingSql);
-             PreparedStatement deletePortfolioStmt = conn.prepareStatement(deletePortfolioSql)) {
+                PreparedStatement deletePortfolioHoldingStmt = conn.prepareStatement(deletePortfolioHoldingSql);
+                PreparedStatement deletePortfolioStmt = conn.prepareStatement(deletePortfolioSql)) {
 
             // Start transaction
             conn.setAutoCommit(false);
@@ -305,7 +305,7 @@ public class PortfolioManager {
         String sql = "UPDATE Portfolio SET cash_balance = cash_balance + ? WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setDouble(1, amount);
             pstmt.setInt(2, getPortfolioIDbyName(userId, portfolioName));
@@ -345,16 +345,18 @@ public class PortfolioManager {
     // Get cash balance of a portfolio
     public double getCashBalance(int userId, String portfolioName) {
         // Validate portfolio name
-        if (invalidPortfolioName(portfolioName)) return -3;
+        if (invalidPortfolioName(portfolioName))
+            return -3;
 
         // Check if portfolio exists
-        if (!portfolioExists(userId, portfolioName)) return -2;
+        if (!portfolioExists(userId, portfolioName))
+            return -2;
 
         // Get cash balance from database
         String sql = "SELECT cash_balance FROM Portfolio WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, getPortfolioIDbyName(userId, portfolioName));
             ResultSet rs = pstmt.executeQuery();
@@ -369,7 +371,7 @@ public class PortfolioManager {
 
         return -1;
     }
-    
+
     // Remove cash from a portfolio
     public void withdrawCash(int userId) {
         Scanner scanner = new Scanner(System.in);
@@ -418,7 +420,7 @@ public class PortfolioManager {
         String sql = "UPDATE Portfolio SET cash_balance = cash_balance - ? WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setDouble(1, amount);
             pstmt.setInt(2, getPortfolioIDbyName(userId, portfolioName));
@@ -490,8 +492,8 @@ public class PortfolioManager {
         String depositSql = "UPDATE Portfolio SET cash_balance = cash_balance + ? WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt1 = conn.prepareStatement(withdrawSql);
-             PreparedStatement pstmt2 = conn.prepareStatement(depositSql)) {
+                PreparedStatement pstmt1 = conn.prepareStatement(withdrawSql);
+                PreparedStatement pstmt2 = conn.prepareStatement(depositSql)) {
 
             pstmt1.setDouble(1, amount);
             pstmt1.setInt(2, getPortfolioIDbyName(userId, sourcePortfolioName));
@@ -509,7 +511,8 @@ public class PortfolioManager {
     // Manage portfolio holdings
     public void managePortfolioHoldings(int userId) {
         // Display portfolios owned by the user
-        if (!displayUserPortfolios(userId)) return;
+        if (!displayUserPortfolios(userId))
+            return;
 
         Scanner scanner = new Scanner(System.in);
         System.out.print("\nEnter the ID of the portfolio to manage: ");
@@ -549,7 +552,7 @@ public class PortfolioManager {
     private boolean displayUserPortfolios(int userId) {
         String checkSql = "SELECT * FROM Portfolio WHERE user_id = ? ORDER BY portfolio_id ASC";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(checkSql)) {
+                PreparedStatement pstmt = conn.prepareStatement(checkSql)) {
 
             pstmt.setInt(1, userId);
             ResultSet rs = pstmt.executeQuery();
@@ -579,7 +582,7 @@ public class PortfolioManager {
         String sql = "SELECT * FROM Portfolio WHERE user_id = ? AND name = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setString(2, name);
@@ -594,7 +597,6 @@ public class PortfolioManager {
         return false; // Portfolio does not exist
     }
 
-
     // Portfolio name validation
     private boolean invalidPortfolioName(String name) {
         // Check if the name is empty, contains invalid characters, or exceeds length
@@ -606,7 +608,7 @@ public class PortfolioManager {
         String sql = "SELECT portfolio_id FROM Portfolio WHERE user_id = ? AND name = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setString(2, name);
@@ -623,12 +625,12 @@ public class PortfolioManager {
         return 0;
     }
 
-        // Get portfolio name by ID
+    // Get portfolio name by ID
     public String getPortfolioNamebyID(int portfolioId) {
         String sql = "SELECT name FROM Portfolio WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, portfolioId);
             ResultSet rs = pstmt.executeQuery();
