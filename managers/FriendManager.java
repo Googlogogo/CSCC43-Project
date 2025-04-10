@@ -197,7 +197,7 @@ public class FriendManager {
 
         System.out.print("Enter friend's username to delete: ");
         String friendUsername = scanner.nextLine();
-        int friendId = UserManager.getIDbyUsername(friendUsername);
+        int friendId = UserManager.getUserIDbyUsername(friendUsername);
         if (friendId == -1) {
             System.out.println("User does not exist!");
             return;
