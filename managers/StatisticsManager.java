@@ -149,7 +149,7 @@ public class StatisticsManager {
             // Check if the portfolio contains any stocks
             String sqlCheck = "SELECT COUNT(*) AS count FROM PortfolioHolding WHERE portfolio_id = ?";
             try (Connection conn = DatabaseConnection.getConnection();
-                 PreparedStatement stmtCheck = conn.prepareStatement(sqlCheck)) {
+                    PreparedStatement stmtCheck = conn.prepareStatement(sqlCheck)) {
                 stmtCheck.setInt(1, portfolioId);
                 ResultSet rsCheck = stmtCheck.executeQuery();
                 if (rsCheck.next() && rsCheck.getInt("count") == 0) {
@@ -180,7 +180,7 @@ public class StatisticsManager {
             // Check if the stock list contains any stocks
             String sqlCheck = "SELECT COUNT(*) AS count FROM StockListHolding WHERE list_id = ?";
             try (Connection conn = DatabaseConnection.getConnection();
-                 PreparedStatement stmtCheck = conn.prepareStatement(sqlCheck)) {
+                    PreparedStatement stmtCheck = conn.prepareStatement(sqlCheck)) {
                 stmtCheck.setInt(1, listId);
                 ResultSet rsCheck = stmtCheck.executeQuery();
                 if (rsCheck.next() && rsCheck.getInt("count") == 0) {
@@ -262,25 +262,49 @@ public class StatisticsManager {
     private static void displayBetas(int id, Timestamp start, Timestamp end, boolean isPortfolio)
             throws SQLException {
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // TODO: Fix the market index ID
-            int marketIndexId = 999;
             String table = isPortfolio ? "PortfolioHolding" : "StockListHolding";
-            String sql = "SELECT h.symbol, " +
-                    "COVAR_POP(s.close, m.close) / VAR_POP(m.close) AS beta " +
-                    "FROM " + table + " h " +
-                    "JOIN StockHistory s ON h.symbol = s.symbol " +
-                    "JOIN StockHistory m ON s.timestamp = m.timestamp AND m.symbol = ? " +
-                    "WHERE h." + (isPortfolio ? "portfolio_id" : "list_id") + " = ? AND s.timestamp BETWEEN ? AND ? " +
-                    "GROUP BY h.symbol";
+
+            String sql = "WITH Returns AS (\n" +
+                    "    SELECT\n" +
+                    "        h.symbol,\n" +
+                    "        sh.timestamp,\n" +
+                    "        sh.close,\n" +
+                    "        LAG(sh.close) OVER (PARTITION BY h.symbol ORDER BY sh.timestamp) AS prev_close\n" +
+                    "    FROM " + table + " h\n" +
+                    "    JOIN StockHistory sh ON h.symbol = sh.symbol\n" +
+                    "    WHERE h." + (isPortfolio ? "portfolio_id" : "list_id") + " = ?\n" +
+                    "        AND sh.timestamp BETWEEN ? AND ?\n" +
+                    ")\n" +
+                    ", StockReturns AS (\n" +
+                    "    SELECT\n" +
+                    "        symbol,\n" +
+                    "        timestamp,\n" +
+                    "        (close - prev_close) / prev_close AS return\n" +
+                    "    FROM Returns\n" +
+                    "    WHERE prev_close IS NOT NULL\n" +
+                    ")\n" +
+                    ", MarketReturns AS (\n" +
+                    "    SELECT\n" +
+                    "        timestamp,\n" +
+                    "        AVG(return) AS market_return\n" +
+                    "    FROM StockReturns\n" +
+                    "    GROUP BY timestamp\n" +
+                    ")\n" +
+                    "SELECT\n" +
+                    "    s.symbol,\n" +
+                    "    COVAR_POP(s.return, m.market_return) / VAR_POP(m.market_return) AS beta\n" +
+                    "FROM StockReturns s\n" +
+                    "JOIN MarketReturns m ON s.timestamp = m.timestamp\n" +
+                    "GROUP BY s.symbol\n" +
+                    "ORDER BY s.symbol";
 
             PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setInt(1, marketIndexId);
-            stmt.setInt(2, id);
-            stmt.setTimestamp(3, start);
-            stmt.setTimestamp(4, end);
+            stmt.setInt(1, id);
+            stmt.setTimestamp(2, start);
+            stmt.setTimestamp(3, end);
             ResultSet rs = stmt.executeQuery();
 
-            System.out.println("\nBeta Values (vs. Market Index ID " + marketIndexId + "):");
+            System.out.println("\nBeta Values (vs. Dynamic Market Average):");
             while (rs.next()) {
                 String symbol = rs.getString("symbol");
                 double beta = rs.getDouble("beta");
@@ -290,7 +314,7 @@ public class StatisticsManager {
     }
 
     private static void displayCovarianceMatrix(int id, Timestamp start, Timestamp end,
-                                                boolean isPortfolio) throws SQLException {
+            boolean isPortfolio) throws SQLException {
         try (Connection conn = DatabaseConnection.getConnection()) {
             String table = isPortfolio ? "PortfolioHolding" : "StockListHolding";
             String sqlStocks = "SELECT DISTINCT symbol FROM " + table + " WHERE "
