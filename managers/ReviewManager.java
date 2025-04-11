@@ -64,7 +64,7 @@ public class ReviewManager {
 
         String query = "INSERT INTO Review (list_id, user_id, content) VALUES (?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(query)) {
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, listId);
             pstmt.setInt(2, userId);
             pstmt.setString(3, review);
@@ -83,48 +83,75 @@ public class ReviewManager {
             return;
         }
 
-        // Fetch and display all reviews
-        String query = """
+        // Fetch and display reviews
+        String query;
+        if (getOwnerId(listId) == userId) {
+            // If the user is the owner, they can view all reviews
+            query = "SELECT * FROM Review WHERE list_id = ?";
+            try (PreparedStatement pstmt1 = DatabaseConnection.getConnection().prepareStatement(query)) {
+                pstmt1.setInt(1, listId);
+                ResultSet rs = pstmt1.executeQuery();
+                if (!rs.isBeforeFirst()) {
+                    System.out.println("No reviews found.");
+                    return;
+                }
+                while (rs.next()) {
+                    int rId = rs.getInt("review_id");
+                    int lId = rs.getInt("list_id");
+                    int uId = rs.getInt("user_id");
+                    String listName = StockListManager.getStockListNameById(lId);
+                    String content = rs.getString("content");
+                    Timestamp createdAt = rs.getTimestamp("created_at");
+                    // Format the createdAt timestamp to a readable format
+                    String createdAtFormatted = createdAt.toLocalDateTime().toLocalDate().toString();
+                    System.out.printf("""
+                            
+                            Review ID: %d
+                            Stock List Name: %s
+                            Created By: %s
+                            Content: %s
+                            Created At: %s
+                            """, rId, listName, UserManager.getUsernameByID(uId), content, createdAtFormatted);
+                }
+            } catch (SQLException e) {
+                System.err.println("Error preparing statement: " + e.getMessage());
+            }
+        } else {
+            // If the user is not the owner, they can only view their own reviews and the owner's reviews
+            query = """
                 SELECT *
                 FROM Review r
                 JOIN StockList sl ON r.list_id = sl.list_id
-                WHERE r.list_id = ? AND (sl.visibility = 'public' OR sl.user_id = ? OR
-                (sl.visibility = 'shared' AND sl.list_id IN (
-                    SELECT list_id
-                    FROM SharedStockList
-                    WHERE list_id = sl.list_id AND shared_user_id = ?
-                )))
+                WHERE r.list_id = ? AND (r.user_id = ? OR (r.user_id = sl.user_id))
                 """;
-        try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setInt(1, listId);
-            pstmt.setInt(2, userId);
-            pstmt.setInt(3, userId);
-
-            ResultSet rs = pstmt.executeQuery();
-            if (!rs.isBeforeFirst()) {
-                System.out.println("No reviews found.");
-                return;
+            try (PreparedStatement pstmt2 = DatabaseConnection.getConnection().prepareStatement(query)) {
+                pstmt2.setInt(1, listId);
+                pstmt2.setInt(2, userId);
+                ResultSet rs = pstmt2.executeQuery();
+                if (!rs.isBeforeFirst()) {
+                    System.out.println("No reviews found.");
+                    return;
+                }
+                while (rs.next()) {
+                    int rId = rs.getInt("review_id");
+                    int lId = rs.getInt("list_id");
+                    int uId = rs.getInt("user_id");
+                    String listName = StockListManager.getStockListNameById(lId);
+                    String content = rs.getString("content");
+                    Timestamp createdAt = rs.getTimestamp("created_at");
+                    // Format the createdAt timestamp to a readable format
+                    String createdAtFormatted = createdAt.toLocalDateTime().toLocalDate().toString();
+                    System.out.printf("""
+                            Review ID: %d
+                            Stock List Name: %s
+                            Created By: %s
+                            Content: %s
+                            Created At: %s
+                            """, rId, listName, UserManager.getUsernameByID(uId), content, createdAtFormatted);
+                }
+            } catch (SQLException e) {
+                System.err.println("Error preparing statement: " + e.getMessage());
             }
-
-            while (rs.next()) {
-                int rId = rs.getInt("review_id");
-                int lId = rs.getInt("list_id");
-                int uId = rs.getInt("user_id");
-                String listName = StockListManager.getStockListNameById(lId);
-                String content = rs.getString("content");
-                Timestamp createdAt = rs.getTimestamp("created_at");
-                System.out.printf("""
-
-                        Review ID: %d
-                        Stock List Name: %s
-                        Created By: %s
-                        Content: %s
-                        Created At: %s
-                        """, rId, listName, UserManager.getUsernameByID(uId), content, createdAt);
-            }
-        } catch (SQLException e) {
-            System.err.println("Error fetching reviews: " + e.getMessage());
         }
     }
 
@@ -144,7 +171,7 @@ public class ReviewManager {
 
         String query = "DELETE FROM Review WHERE review_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(query)) {
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, reviewId);
             int rowsAffected = pstmt.executeUpdate();
             if (rowsAffected > 0) {
@@ -161,7 +188,7 @@ public class ReviewManager {
     public boolean checkReviewOwnership(int reviewId, int userId, int listId) {
         String query = "SELECT * FROM Review WHERE review_id = ? AND user_id = ? AND list_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(query)) {
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, reviewId);
             pstmt.setInt(2, userId);
             pstmt.setInt(3, listId);
@@ -177,13 +204,13 @@ public class ReviewManager {
     // Check if the user has access to the review
     public boolean notHasAccessToReview(int userId, int listId) {
         String query = """
-                SELECT *
-                FROM StockList sl
-                LEFT JOIN SharedStockList ssl ON sl.list_id = ssl.list_id
-                WHERE sl.list_id = ? AND (sl.user_id = ? OR ssl.shared_user_id = ? OR sl.visibility = 'public')
-                """;
+               SELECT *
+               FROM StockList sl
+               LEFT JOIN SharedStockList ssl ON sl.list_id = ssl.list_id
+               WHERE sl.list_id = ? AND (sl.user_id = ? OR ssl.shared_user_id = ? OR sl.visibility = 'public')
+               """;
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(query)) {
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, listId);
             pstmt.setInt(2, userId);
             pstmt.setInt(3, userId);
@@ -194,5 +221,21 @@ public class ReviewManager {
             System.err.println("Error checking access to review: " + e.getMessage());
             return true;
         }
+    }
+
+    // Get the owner ID of the stock list
+    public int getOwnerId(int listId) {
+        String query = "SELECT user_id FROM StockList WHERE list_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, listId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("user_id");
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching owner ID: " + e.getMessage());
+        }
+        return -1; // Return -1 if the owner ID is not found
     }
 }

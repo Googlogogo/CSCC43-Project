@@ -223,7 +223,7 @@ public class StatisticsManager {
 
             while (rs.next()) {
                 int listId = rs.getInt("list_id");
-                if (canAccessStockList(userId, listId)) {
+                if (StockListManager.canAccessStockList(userId, listId)) {
                     return listId;
                 }
             }
