@@ -20,7 +20,8 @@ public class UserManager {
                     1. Manage Portfolios
                     2. Manage Stock Lists
                     3. Manage Friends
-                    4. Logout
+                    4. Manage Account (additional features)
+                    5. Logout
                     """);
             System.out.print("Choose an option: ");
 
@@ -45,6 +46,114 @@ public class UserManager {
                     friendManager.friendDashboard(userId);
                     break;
                 case 4:
+                    System.out.println("""
+                            
+                            Welcome to Account Management!
+                            1. Update Username
+                            2. Update Email
+                            3. Update Password
+                            4. Delete Account
+                            """);
+                    System.out.println("Enter 'back' to return to the main menu.");
+                    System.out.print("Choose an option: ");
+                    // Handle back option
+                    String accountOption = scanner.nextLine();
+                    if (accountOption.equals("back")) {
+                        continue;
+                    }
+                    // Prevent users from inputting non-integer values
+                    if (!accountOption.matches("\\d+")) {
+                        System.out.println("Invalid option. Please try again.");
+                        continue;
+                    }
+                    int accountOptionInt = Integer.parseInt(accountOption);
+                    // Handle account management options
+                    if (accountOptionInt < 1 || accountOptionInt > 4) {
+                        System.out.println("Invalid option. Please try again.");
+                        continue;
+                    }
+                    // Perform the selected account management action
+                    switch (accountOptionInt) {
+                        case 1:
+                            System.out.print("Enter new username: ");
+                            String newUsername = scanner.nextLine();
+                            scanner.nextLine(); // Consume the newline character
+                            // Check if the new username is valid
+                            if (newUsername.isEmpty()) {
+                                System.out.println("Username cannot be empty.");
+                                continue;
+                            } else if (newUsername.length() < 3) {
+                                System.out.println("Username is too short. Minimum 3 characters required.");
+                                continue;
+                            } else if (newUsername.length() > 50) {
+                                System.out.println("Username is too long. Maximum 50 characters allowed.");
+                                continue;
+                            } else if (newUsername.contains(" ")) {
+                                System.out.println("Username cannot contain spaces.");
+                                continue;
+                            } else if (userExists(newUsername)) {
+                                System.out.println("Username already exists. Please choose a different username.");
+                                continue;
+                            }
+                            AccountManager.updateUsername(userId, newUsername);
+                            break;
+                        case 2:
+                            System.out.print("Enter new email: ");
+                            String newEmail = scanner.nextLine();
+                            scanner.nextLine(); // Consume the newline character
+                            // Check if the new email is valid
+                            if (newEmail.isEmpty()) {
+                                System.out.println("Email cannot be empty.");
+                                continue;
+                            } else if (newEmail.length() < 5) {
+                                System.out.println("Email is too short. Minimum 5 characters required.");
+                                continue;
+                            } else if (newEmail.length() > 100) {
+                                System.out.println("Email is too long. Maximum 100 characters allowed.");
+                                continue;
+                            } else if (newEmail.contains(" ") || !newEmail.matches("^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$")) {
+                                System.out.println("Invalid email format. Please enter a valid email address.");
+                                continue;
+                            } else if (emailExists(newEmail)) {
+                                System.out.println("Email already exists. Please choose a different email.");
+                                continue;
+                            }
+                            AccountManager.updateEmail(userId, newEmail);
+                            break;
+                        case 3:
+                            System.out.print("Enter new password: ");
+                            String newPassword = scanner.nextLine();
+                            scanner.nextLine(); // Consume the newline character
+                            // Check if the new password is valid
+                            if (newPassword.isEmpty()) {
+                                System.out.println("Password cannot be empty.");
+                                continue;
+                            } else if (newPassword.length() < 6) {
+                                System.out.println("Password is too short. Minimum 6 characters required.");
+                                continue;
+                            } else if (newPassword.length() > 255) {
+                                System.out.println("Password is too long. Maximum 255 characters allowed.");
+                                continue;
+                            } else if (!newPassword.matches(".*[a-zA-Z].*") || !newPassword.matches(".*[0-9].*")) {
+                                System.out.println("Password must contain both letters and numbers.");
+                                continue;
+                            }
+                            AccountManager.updatePassword(userId, newPassword);
+                            break;
+                        case 4:
+                            System.out.print("Are you sure you want to delete your account? (y/n): ");
+                            String confirmation = scanner.nextLine();
+                            if (!confirmation.equalsIgnoreCase("y")) {
+                                System.out.println("Account deletion cancelled.");
+                                continue;
+                            }
+                            AccountManager.deleteAccount(userId);
+                            return; // Logout after deletion
+                        default:
+                            System.out.println("Invalid option. Try again.");
+                    }
+                    break;
+                case 5:
                     System.out.println("Logging out...");
                     return;
                 default:
@@ -195,7 +304,7 @@ public class UserManager {
         return -1; // no match found (login failed)
     }
 
-
+    //
 
     // Get username by ID
     public static String getUsernameByID(int userId) {
@@ -219,7 +328,7 @@ public class UserManager {
     }
 
     // Get ID by username
-    public static int getIDbyUsername(String username) {
+    public static int getUserIDbyUsername(String username) {
         String sql = "SELECT user_id FROM Users WHERE username = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
@@ -275,24 +384,5 @@ public class UserManager {
         }
 
         return false; // Return false if no row is found
-    }
-
-    // View all users (for testing, remove later)
-    public void viewAllUsers() {
-        String sql = "SELECT * FROM Users";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                System.out.println("User: " + rs.getString("username") +
-                        " - Email: " + rs.getString("email") +
-                        " - Password: " + rs.getString("password"));
-            }
-
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
     }
 }
