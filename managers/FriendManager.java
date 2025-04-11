@@ -11,9 +11,9 @@ public class FriendManager {
 
         while (true) {
             System.out.println("""
-                    
+
                     Welcome to the Friends Dashboard!
-                    
+
                     1. Add friend
                     2. View existing friends
                     3. View incoming friend requests
@@ -76,7 +76,7 @@ public class FriendManager {
         String sql = "SELECT user_id FROM Users WHERE username = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, friendUsername);
             ResultSet rs = pstmt.executeQuery();
@@ -107,7 +107,7 @@ public class FriendManager {
                 "UNION SELECT requester_id FROM Friend WHERE receiver_id = ? AND status = 'accepted')";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userID);
             pstmt.setInt(2, userID);
@@ -116,7 +116,7 @@ public class FriendManager {
             System.out.println("\nExisting Friends:");
             if (!rs.isBeforeFirst()) {
                 System.out.println("You have no friends yet.");
-            } else{
+            } else {
                 while (rs.next()) {
                     System.out.println("Friend: " + rs.getString("username"));
                 }
@@ -133,7 +133,7 @@ public class FriendManager {
                 "(SELECT requester_id FROM Friend WHERE receiver_id = ? AND status = 'pending')";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(incoming_sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(incoming_sql)) {
 
             pstmt.setInt(1, userID);
             ResultSet rs = pstmt.executeQuery();
@@ -172,7 +172,7 @@ public class FriendManager {
                 "(SELECT receiver_id FROM Friend WHERE requester_id = ? AND status = 'pending')";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(outgoing_sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(outgoing_sql)) {
 
             pstmt.setInt(1, userID);
             ResultSet rs = pstmt.executeQuery();
@@ -217,7 +217,7 @@ public class FriendManager {
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setInt(2, friendId);
@@ -230,8 +230,7 @@ public class FriendManager {
         }
 
         // Remove shared stock list with the friend
-        StockListManager stockListManager = new StockListManager();
-        stockListManager.removeSharedStockList(userId, friendId);
+        removeSharedStockList(userId, friendId);
     }
 
     // Send a friend request
@@ -247,7 +246,7 @@ public class FriendManager {
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement checkPstmt = conn.prepareStatement(checkSql)) {
+                PreparedStatement checkPstmt = conn.prepareStatement(checkSql)) {
 
             checkPstmt.setInt(1, userId);
             checkPstmt.setInt(2, friendId);
@@ -293,7 +292,7 @@ public class FriendManager {
         String write_sql = "INSERT INTO Friend (requester_id, receiver_id, status) VALUES (?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(update_sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(update_sql)) {
 
             pstmt.setString(1, accept ? "accepted" : "denied");
             pstmt.setInt(2, friendId);
@@ -328,7 +327,7 @@ public class FriendManager {
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setInt(2, friendId);
@@ -345,5 +344,29 @@ public class FriendManager {
         }
 
         return false; // Return false if no row is found
+    }
+
+    // Remove shared stock list if friendship is removed
+    public void removeSharedStockList(int userId, int friendId) {
+        String sql = """
+                DELETE FROM SharedStockList
+                WHERE shared_user_id = ? AND list_id IN (
+                    SELECT list_id
+                    FROM StockList
+                    WHERE user_id = ?
+                )
+                """;
+
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, friendId);
+            pstmt.setInt(2, userId);
+            pstmt.executeUpdate();
+            System.out.println("Shared stock lists removed successfully!");
+
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
     }
 }

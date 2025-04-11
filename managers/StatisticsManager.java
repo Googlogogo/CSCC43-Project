@@ -216,13 +216,16 @@ public class StatisticsManager {
 
     private static int getListId(int userId, String listName) throws SQLException {
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = "SELECT list_id FROM StockList WHERE user_id = ? AND name = ?";
+            String sql = "SELECT list_id FROM StockList WHERE name = ?";
             PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setInt(1, userId);
-            stmt.setString(2, listName);
+            stmt.setString(1, listName);
             ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("list_id");
+
+            while (rs.next()) {
+                int listId = rs.getInt("list_id");
+                if (canAccessStockList(userId, listId)) {
+                    return listId;
+                }
             }
         }
         return -1;

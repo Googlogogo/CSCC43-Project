@@ -681,4 +681,29 @@ public class StockListManager {
         return listName.trim().isEmpty() || !listName.matches("^[a-zA-Z0-9_ ]+$") ||
                 listName.length() > 100;
     }
+
+    // Check if the user can access the stock list
+    public static boolean canAccessStockList(int userId, int listId) {
+        String sql = """
+                SELECT *
+                FROM StockList sl
+                LEFT JOIN SharedStockList ssl ON sl.list_id = ssl.list_id
+                WHERE sl.list_id = ? AND (sl.user_id = ? OR ssl.shared_user_id = ? OR sl.visibility = 'public')
+                """;
+
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, listId);
+            pstmt.setInt(2, userId);
+            pstmt.setInt(3, userId);
+            ResultSet rs = pstmt.executeQuery();
+
+            return rs.next(); // Returns true if the user can access the stock list
+
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+        return false; // User cannot access the stock list
+    }
 }
