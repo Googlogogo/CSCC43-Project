@@ -71,18 +71,7 @@ public class StockListManager {
                 case "8":
                     // Display stock list statistics
                     System.out.println("\nDisplaying stock list statistics...");
-                    System.out.print("Enter stock list name: ");
-                    String name = scanner.nextLine();
-                    // Validate stock list name
-                    if (isValidStockListName(name)) {
-                        System.out.println("Invalid stock list name!");
-                        break;
-                    }
-                    if (canAccessStockList(userId, getStockListIdByName(userId, name))) {
-                        System.out.println("You do not have access to this stock list!");
-                        break;
-                    }
-                    StatisticsManager.handleStockListStatistics(userId, name);
+                    manageStatistics(userId);
                     break;
                 default:
                     System.out.println("Invalid option. Please try again.");
@@ -102,6 +91,11 @@ public class StockListManager {
             System.out.println("Invalid stock list name!");
             return;
         }
+        // Check if the stock list already exists
+        if (stockListExists(getStockListIdByName(userId, listName))) {
+            System.out.println("Stock list already exists! Please choose a different name.");
+            return;
+        }
 
         System.out.print("Enter the visibility (public/private/shared): ");
         String visibility = scanner.nextLine().toLowerCase();
@@ -112,25 +106,22 @@ public class StockListManager {
             return;
         }
 
-        // Check if the stock list already exists
-        if (stockListExists(getStockListIdByName(userId, listName))) {
-            System.out.println("Stock list already exists!");
+        // SQL query to insert a new stock list into the database
+        int listId = insertStockList(userId, listName, visibility);
+        if (listId == -1) {
+            System.out.println("Failed to create stock list.");
             return;
         }
 
         // Check if the user wants to share the stock list
         if (visibility.equalsIgnoreCase("shared")) {
-            shareStockList(userId, listName);
-            return;
+            shareStockList(userId, listId);
         }
-
-        // SQL query to insert a new stock list into the database
-        insertStockList(userId, listName, visibility);
     }
 
     // Insert a new stock list into the database in SQL
-    private void insertStockList(int userId, String listName, String visibility) {
-        String sql = "INSERT INTO StockList (user_id, name, visibility) VALUES (?, ?, ?)";
+    private int insertStockList(int userId, String listName, String visibility) {
+        String sql = "INSERT INTO StockList (user_id, name, visibility) VALUES (?, ?, ?) RETURNING list_id";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -138,244 +129,17 @@ public class StockListManager {
             pstmt.setInt(1, userId);
             pstmt.setString(2, listName);
             pstmt.setString(3, visibility);
-            pstmt.executeUpdate();
-            System.out.println("Stock list created successfully!");
 
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
-    }
-
-    // Share a stock list with another user, while not changing the visibility
-    private boolean shareStockListWithUser(int userId, String listName) {
-        Scanner scanner = new Scanner(System.in);
-        // Prompt the user for the username to share with
-        System.out.print("Enter the username to share with: ");
-        String username = scanner.nextLine();
-
-        // Check if the stock list is already shared with the user
-        if (isStockListSharedWithUser(UserManager.getUserIDbyUsername(username), listName)) {
-            System.out.println("Stock list is already shared with this user!");
-            return false;
-        }
-        // Check if the user exists
-        if (!UserManager.userExists(username)) {
-            System.out.println("User does not exist!");
-            return false;
-        }
-        // Check if the input username is the same as the logged-in user
-        if (UserManager.getUserIDbyUsername(username) == userId) {
-            System.out.println("You cannot share the stock list with yourself!");
-            return false;
-        }
-        // Check if the input user is friend with the logged-in user
-        if (!FriendManager.areFriends(userId, UserManager.getUserIDbyUsername(username))) {
-            System.out.println("This user is not your friend! You cannot share the stock list with them.");
-            return false;
-        }
-
-        // SQL query to share the stock list
-        String sql = "INSERT INTO SharedStockList (list_id, shared_user_id) VALUES (?, ?)";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, getStockListIdByName(userId, listName));
-            pstmt.setInt(2, UserManager.getUserIDbyUsername(username));
-            pstmt.executeUpdate();
-            System.out.println("Stock list shared successfully!");
-            return true;
-
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
-        return false; // Stock list not shared
-    }
-
-    // Check if the stock list is already shared with the user
-    private boolean isStockListSharedWithUser(int otherUserId, String listName) {
-        String sql = """
-                SELECT *
-                FROM SharedStockList ssl
-                JOIN StockList sl ON ssl.list_id = sl.list_id
-                WHERE ssl.shared_user_id = ? AND sl.name = ?
-                """;
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, otherUserId);
-            pstmt.setString(2, listName);
             ResultSet rs = pstmt.executeQuery();
-
-            return rs.next(); // Returns true if the stock list is already shared with the user
-
+            if (rs.next()) {
+                System.out.println("Stock list created successfully!");
+                return rs.getInt("list_id");
+            }
         } catch (SQLException e) {
             System.err.println(e.getMessage());
         }
-        return false; // Stock list not shared
-    }
 
-    // Share a stock list with another user, while updating its visibility
-    private void shareStockList(int userId, String listName) {
-        // Attempt to share the stock list with another user.
-        if (!shareStockListWithUser(userId, listName)) return;
-
-        // SQL query to update the visibility of the stock list
-        updateStockListVisibility(userId, listName, "shared");
-    }
-
-    // Update the stock list name
-    public void updateStockListName(int userId) {
-        Scanner scanner = new Scanner(System.in);
-        // Prompt the user for the stock list name to update
-        System.out.print("Enter the name of the stock list to update: ");
-        String oldListName = scanner.nextLine();
-
-        // Check if the stock list exists
-        if (!stockListExists(getStockListIdByName(userId, oldListName))) {
-            System.out.println("Stock list does not exist!");
-            return;
-        }
-
-        // Check if the stock list belongs to the user
-        if (!checkStockListBelongsToUser(userId, oldListName)) {
-            System.out.println("You do not own this stock list!");
-            return;
-        }
-
-        System.out.print("Enter the new name for the stock list: ");
-        String newListName = scanner.nextLine();
-
-        // Validate the new stock list name
-        if (isValidStockListName(newListName)) {
-            System.out.println("Invalid stock list name!");
-            return;
-        }
-
-        // SQL query to update the stock list name
-        String sql = "UPDATE StockList SET name = ? WHERE list_id = ?";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, newListName);
-            pstmt.setInt(2, getStockListIdByName(userId, oldListName));
-            pstmt.executeUpdate();
-            System.out.println("Stock list name updated successfully!");
-
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
-    }
-
-    // Update the stock list visibility
-    public void updateVisibility(int userId) {
-        Scanner scanner = new Scanner(System.in);
-        // Prompt the user for the stock list name to update
-        System.out.print("Enter the name of the stock list to update: ");
-        String name = scanner.nextLine();
-
-        // Check if the stock list exists
-        if (!stockListExists(getStockListIdByName(userId, name))) {
-            System.out.println("Stock list does not exist!");
-            return;
-        }
-
-        // Check if the stock list belongs to the user
-        if (!checkStockListBelongsToUser(userId, name)) {
-            System.out.println("You do not own this stock list!");
-            return;
-        }
-
-        System.out.print("Enter the new visibility (public/private/shared): ");
-        String newVisibility = scanner.nextLine().toLowerCase();
-
-        // Validate the visibility input
-        if (!newVisibility.equals("public") && !newVisibility.equals("private") && !newVisibility.equals("shared")) {
-            System.out.println("Invalid visibility option. Please choose 'public', 'private' or 'shared'.");
-            return;
-        }
-
-        // Check if user wants to share the stock list
-        if (newVisibility.equalsIgnoreCase("shared")) {
-            shareStockList(userId, name);
-        } else {
-            // Update the stock list visibility
-            updateStockListVisibility(userId, name, newVisibility);
-        }
-    }
-
-    // SQL query to update the stock list visibility
-    public void updateStockListVisibility(int userId, String listName, String visibility) {
-        // SQL query to update the stock list visibility
-        String sql = "UPDATE StockList SET visibility = ? WHERE list_id = ?";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, visibility);
-            pstmt.setInt(2, getStockListIdByName(userId, listName));
-            pstmt.executeUpdate();
-            System.out.println("Stock list visibility updated successfully!");
-
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
-    }
-
-    // Delete a stock list
-    public void deleteStockList(int userId) {
-        Scanner scanner = new Scanner(System.in);
-        // Prompt the user for the stock list name to delete
-        System.out.print("Enter the name of the stock list to delete: ");
-        String listName = scanner.nextLine();
-
-        // Check if the stock list exists
-        int listId = getStockListIdByName(userId, listName);
-        if (!stockListExists(listId)) {
-            System.out.println("Stock list does not exist!");
-            return;
-        }
-
-        // SQL queries to delete the associated entries
-        String deleteReviewsSql = "DELETE FROM Review WHERE list_id = ?";
-        String deleteSharedStockListSql = "DELETE FROM SharedStockList WHERE list_id = ?";
-        String deleteStockListHoldingSql = "DELETE FROM StockListHolding WHERE list_id = ?";
-        String deleteStockListSql = "DELETE FROM StockList WHERE list_id = ?";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement deleteReviewsStmt = conn.prepareStatement(deleteReviewsSql);
-             PreparedStatement deleteSharedStockListStmt = conn.prepareStatement(deleteSharedStockListSql);
-             PreparedStatement deleteStockListHoldingStmt = conn.prepareStatement(deleteStockListHoldingSql);
-             PreparedStatement deleteStockListStmt = conn.prepareStatement(deleteStockListSql)) {
-
-            // Start transaction
-            conn.setAutoCommit(false);
-
-            // Delete reviews
-            deleteReviewsStmt.setInt(1, listId);
-            deleteReviewsStmt.executeUpdate();
-
-            // Delete shared stock list entries
-            deleteSharedStockListStmt.setInt(1, listId);
-            deleteSharedStockListStmt.executeUpdate();
-
-            // Delete stock list holdings
-            deleteStockListHoldingStmt.setInt(1, listId);
-            deleteStockListHoldingStmt.executeUpdate();
-
-            // Delete stock list
-            deleteStockListStmt.setInt(1, listId);
-            deleteStockListStmt.executeUpdate();
-
-            // Commit transaction
-            conn.commit();
-            System.out.println("Stock list and associated entries deleted successfully!");
-
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
+        return -1; // Stock list not created
     }
 
     // View all stock lists
@@ -419,7 +183,7 @@ public class StockListManager {
             // Prompt the user for the stock id to view
             System.out.println("\nYou can view the details of a stock list.");
             System.out.println("Enter '-1' to go back.");
-            System.out.print("Enter the ID of the stock list to view: ");
+            System.out.print("\nEnter the ID of the stock list to view: ");
 
             // Prevent users from inputting non-integer values
             if (!scanner.hasNextInt()) {
@@ -449,14 +213,147 @@ public class StockListManager {
         }
     }
 
-    // Manage stock list holdings
-    public void manageStockListHoldings(int userId) {
+    // Delete a stock list
+    public void deleteStockList(int userId) {
         // Display the stock lists owned by the user
-        if (!displayUserStockLists(userId)) return;
+        if (!canDisplayUserStockLists(userId)) return;
 
         Scanner scanner = new Scanner(System.in);
-        // Prompt the user for the stock list name to manage
-        System.out.print("\nEnter the ID of the stock list to manage: ");
+        // Prompt the user for the stock list name to delete
+        System.out.print("Enter the ID of the stock list to delete: ");
+        int listId;
+        // Prevent users from inputting non-integer values
+        if (!scanner.hasNextInt()) {
+            System.out.println("Invalid option. Please try again.");
+            scanner.nextLine();
+            return;
+        }
+        listId = scanner.nextInt();
+        scanner.nextLine(); // Consume the newline character
+
+        // Prompt the user for confirmation
+        System.out.print("Are you sure you want to delete this stock list? (y/n): ");
+        String confirmation = scanner.nextLine();
+        if (!confirmation.equalsIgnoreCase("y")) {
+            System.out.println("Stock list deletion cancelled.");
+            return;
+        }
+
+        // Check if the stock list exists
+        if (!stockListExists(listId)) {
+            System.out.println("Stock list does not exist!");
+            return;
+        }
+        // Check if the stock list belongs to the user
+        if (!checkStockListBelongsToUser(userId, listId)) {
+            System.out.println("You do not own this stock list!");
+            return;
+        }
+
+        // SQL queries to delete the associated entries
+        String deleteReviewsSql = "DELETE FROM Review WHERE list_id = ?";
+        String deleteSharedStockListSql = "DELETE FROM SharedStockList WHERE list_id = ?";
+        String deleteStockListHoldingSql = "DELETE FROM StockListHolding WHERE list_id = ?";
+        String deleteStockListSql = "DELETE FROM StockList WHERE list_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement deleteReviewsStmt = conn.prepareStatement(deleteReviewsSql);
+             PreparedStatement deleteSharedStockListStmt = conn.prepareStatement(deleteSharedStockListSql);
+             PreparedStatement deleteStockListHoldingStmt = conn.prepareStatement(deleteStockListHoldingSql);
+             PreparedStatement deleteStockListStmt = conn.prepareStatement(deleteStockListSql)) {
+
+            // Start transaction
+            conn.setAutoCommit(false);
+
+            // Delete reviews
+            deleteReviewsStmt.setInt(1, listId);
+            deleteReviewsStmt.executeUpdate();
+
+            // Delete shared stock list entries
+            deleteSharedStockListStmt.setInt(1, listId);
+            deleteSharedStockListStmt.executeUpdate();
+
+            // Delete stock list holdings
+            deleteStockListHoldingStmt.setInt(1, listId);
+            deleteStockListHoldingStmt.executeUpdate();
+
+            // Delete stock list
+            deleteStockListStmt.setInt(1, listId);
+            deleteStockListStmt.executeUpdate();
+
+            // Commit transaction
+            conn.commit();
+            System.out.println("Stock list and associated entries deleted successfully!");
+
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+            try (Connection conn = DatabaseConnection.getConnection()) {
+                // Rollback transaction in case of error
+                conn.rollback();
+                System.out.println("Transaction rolled back due to an error.");
+            } catch (SQLException rollbackEx) {
+                System.err.println("Rollback failed: " + rollbackEx.getMessage());
+            }
+        }
+    }
+
+    // Update the stock list name
+    public void updateStockListName(int userId) {
+        Scanner scanner = new Scanner(System.in);
+        // Prompt the user for the stock list name to update
+        System.out.print("Enter the name of the stock list to update: ");
+        String oldListName = scanner.nextLine();
+        int listId = getStockListIdByName(userId, oldListName);
+
+        // Check if the stock list exists
+        if (!stockListExists(listId)) {
+            System.out.println("Stock list does not exist!");
+            return;
+        }
+        // Check if the stock list belongs to the user
+        if (!checkStockListBelongsToUser(userId, listId)) {
+            System.out.println("You do not own this stock list!");
+            return;
+        }
+
+        System.out.print("Enter the new name for the stock list: ");
+        String newListName = scanner.nextLine();
+
+        // Validate the new stock list name
+        if (isValidStockListName(newListName)) {
+            System.out.println("Invalid stock list name!");
+            return;
+        }
+        // Check if the new stock list name already exists
+        if (stockListExists(getStockListIdByName(userId, newListName))) {
+            System.out.println("Stock list with this name already exists!");
+            return;
+        }
+
+        // SQL query to update the stock list name
+        String sql = "UPDATE StockList SET name = ? WHERE list_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, newListName);
+            pstmt.setInt(2, listId);
+            pstmt.executeUpdate();
+            System.out.println("Stock list name updated successfully!");
+
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+    }
+
+    // Update the stock list visibility
+    public void updateVisibility(int userId) {
+        // Display the stock lists owned by the user
+        if (!canDisplayUserStockLists(userId)) return;
+
+        Scanner scanner = new Scanner(System.in);
+        // Prompt the user for the stock list name to update
+        System.out.print("\nEnter the ID of the stock list to update: ");
         int listId;
         // Prevent users from inputting non-integer values
         if (!scanner.hasNextInt()) {
@@ -472,10 +369,130 @@ public class StockListManager {
             System.out.println("Stock list does not exist!");
             return;
         }
-
         // Check if the stock list belongs to the user
-        if (!checkStockListBelongsToUser(userId, getStockListNameById(listId))) {
+        if (!checkStockListBelongsToUser(userId, listId)) {
             System.out.println("You do not own this stock list!");
+            return;
+        }
+
+        System.out.print("Enter the new visibility (public/private/shared): ");
+        String newVisibility = scanner.nextLine().toLowerCase();
+
+        // Validate the visibility input
+        if (!newVisibility.equals("public") && !newVisibility.equals("private") && !newVisibility.equals("shared")) {
+            System.out.println("Invalid visibility option. Please choose 'public', 'private' or 'shared'.");
+            return;
+        }
+
+        // Check if user wants to share the stock list
+        if (newVisibility.equalsIgnoreCase("shared")) {
+            shareStockList(userId, listId);
+        } else {
+            // Update the stock list visibility only
+            updateStockListVisibility(listId, newVisibility);
+        }
+    }
+
+    // Share a stock list with another user, while not changing the visibility
+    private boolean shareStockListWithUser(int userId, int listId) {
+        Scanner scanner = new Scanner(System.in);
+        // Prompt the user for the username to share with
+        System.out.print("Enter the username to share with: ");
+        String username = scanner.nextLine();
+        int friendId = UserManager.getUserIDbyUsername(username);
+
+        // Check if the user exists
+        if (friendId == -1) {
+            System.out.println("User does not exist!");
+            return false;
+        }
+        // Check if the stock list is already shared with the user
+        if (isSharedAndAccessible(userId, listId)) {
+            System.out.println("Stock list is already shared with this user!");
+            return false;
+        }
+        // Check if the input username is the same as the logged-in user
+        if (friendId == userId) {
+            System.out.println("You cannot share the stock list with yourself!");
+            return false;
+        }
+        // Check if the input user is friend with the logged-in user
+        if (!FriendManager.areFriends(userId, friendId)) {
+            System.out.println("This user is not your friend! You cannot share the stock list with them.");
+            return false;
+        }
+
+        // SQL query to share the stock list
+        String sql = "INSERT INTO SharedStockList (list_id, shared_user_id) VALUES (?, ?)";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, listId);
+            pstmt.setInt(2, friendId);
+            pstmt.executeUpdate();
+            System.out.println("Stock list shared successfully!");
+            return true;
+
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+        return false; // Stock list not shared
+    }
+
+    // Share a stock list with another user, while updating its visibility
+    private void shareStockList(int userId, int listId) {
+        // Attempt to share the stock list with another user
+        if (!shareStockListWithUser(userId, listId)) return;
+
+        // SQL query to update the visibility of the stock list
+        updateStockListVisibility(listId, "shared");
+    }
+
+    // SQL query to update the stock list visibility
+    public void updateStockListVisibility(int listId, String visibility) {
+        // SQL query to update the stock list visibility
+        String sql = "UPDATE StockList SET visibility = ? WHERE list_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, visibility);
+            pstmt.setInt(2, listId);
+            pstmt.executeUpdate();
+            System.out.println("Stock list visibility updated successfully!");
+
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+    }
+
+    // Manage stock list holdings
+    public void manageStockListHoldings(int userId) {
+        // Display the stock lists owned by the user
+        if (!canDisplayUserStockLists(userId)) return;
+
+        Scanner scanner = new Scanner(System.in);
+        // Prompt the user for the stock list name to manage
+        System.out.print("\nEnter the ID of the stock list to view details: ");
+        int listId;
+        // Prevent users from inputting non-integer values
+        if (!scanner.hasNextInt()) {
+            System.out.println("Invalid option. Please try again.");
+            scanner.nextLine();
+            return;
+        }
+        listId = scanner.nextInt();
+        scanner.nextLine(); // Consume the newline character
+
+        // Check if the stock list exists
+        if (!stockListExists(listId)) {
+            System.out.println("Stock list does not exist!");
+            return;
+        }
+        // Check if the user has access to the stock list
+        if (!canAccessStockList(userId, listId)) {
+            System.out.println("You do not have access to this stock list!");
             return;
         }
 
@@ -485,8 +502,72 @@ public class StockListManager {
         stockListHoldingManager.stockListHoldingDashboard(listId);
     }
 
+    // Manage stock list reviews
+    public void manageStockListReviews(int userId) {
+        // Display the stock lists owned by the user
+        if (!canDisplayUserStockLists(userId)) return;
+
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("\nEnter the ID of the stock list to manage reviews: ");
+        int reviewListId;
+        // Prevent users from inputting non-integer values
+        if (!scanner.hasNextInt()) {
+            System.out.println("Invalid option. Please try again.");
+            scanner.nextLine();
+            return;
+        }
+        reviewListId = scanner.nextInt();
+        scanner.nextLine(); // Consume the newline character
+
+        // Check if the stock list exists
+        if (!stockListExists(reviewListId)) {
+            System.out.println("Stock list does not exist!");
+            return;
+        }
+        // Check if the user has access to the stock list
+        if (!canAccessStockList(userId, reviewListId)) {
+            System.out.println("You do not have access to this stock list!");
+            return;
+        }
+
+        System.out.println("Going to the review dashboard...");
+        ReviewManager reviewManager = new ReviewManager();
+        reviewManager.reviewDashboard(userId, reviewListId);
+    }
+
+    // Display stock list statistics
+    public void manageStatistics(int userId) {
+        // Display the stock lists owned by the user
+        if (!canDisplayUserStockLists(userId)) return;
+
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("\nEnter the ID of the stock list to view statistics: ");
+        int listId;
+        // Prevent users from inputting non-integer values
+        if (!scanner.hasNextInt()) {
+            System.out.println("Invalid option. Please try again.");
+            scanner.nextLine();
+            return;
+        }
+        listId = scanner.nextInt();
+        scanner.nextLine(); // Consume the newline character
+
+        // Check if the stock list exists
+        if (!stockListExists(listId)) {
+            System.out.println("Stock list does not exist!");
+            return;
+        }
+        // Check if the user has access to the stock list
+        if (!canAccessStockList(userId, listId)) {
+            System.out.println("You do not have access to this stock list!");
+            return;
+        }
+
+        StatisticsManager.handleStockListStatistics(userId, getStockListNameById(listId));
+    }
+
     // Display stock list for the user
-    public boolean displayUserStockLists(int userId) {
+    public boolean canDisplayUserStockLists(int userId) {
         String checksql = """
                 SELECT *
                 FROM StockList s
@@ -521,58 +602,6 @@ public class StockListManager {
             System.err.println(e.getMessage());
         }
         return false; // Cannot display stock lists
-    }
-
-    // Manage stock list reviews
-    public void manageStockListReviews(int userId) {
-        // Display the stock lists owned by the user
-        if (!displayUserStockLists(userId)) return;
-
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("\nEnter the ID of the stock list to manage reviews: ");
-        int reviewListId;
-        // Prevent users from inputting non-integer values
-        if (!scanner.hasNextInt()) {
-            System.out.println("Invalid option. Please try again.");
-            scanner.nextLine();
-            return;
-        }
-        reviewListId = scanner.nextInt();
-        scanner.nextLine(); // Consume the newline character
-
-        // Check if the stock list exists
-        if (!stockListExists(reviewListId)) {
-            System.out.println("Stock list does not exist!");
-            return;
-        }
-
-        // Check if the stock list visibility is private
-        String visibilitySql = "SELECT visibility FROM StockList WHERE list_id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(visibilitySql)) {
-
-            pstmt.setInt(1, reviewListId);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                String visibility = rs.getString("visibility");
-                if (visibility.equalsIgnoreCase("private")) {
-                    System.out.println("Stock list is private. Cannot manage reviews.");
-                    return;
-                } else if (visibility.equalsIgnoreCase("shared")) {
-                    // Check if the stock list belongs to the user
-                    if (!isSharedAndAccessible(userId, reviewListId)) {
-                        System.out.println("You do not have access to this stock list.");
-                        return;
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
-
-        System.out.println("Going to the review dashboard...");
-        ReviewManager reviewManager = new ReviewManager();
-        reviewManager.reviewDashboard(userId, reviewListId);
     }
 
     // Check if the stock list is shared and accessible to the user
@@ -658,14 +687,16 @@ public class StockListManager {
         return null; // Stock list not found
     }
 
+    // Get holding ID
+
     // Check if the stock list belongs to the user
-    private boolean checkStockListBelongsToUser(int userId, String listName) {
-        String sql = "SELECT * FROM StockList WHERE user_id = ? AND name = ?";
+    private boolean checkStockListBelongsToUser(int userId, int listId) {
+        String sql = "SELECT * FROM StockList WHERE list_id = ? AND user_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, userId);
-            pstmt.setString(2, listName);
+            pstmt.setInt(1, listId);
+            pstmt.setInt(2, userId);
             ResultSet rs = pstmt.executeQuery();
 
             return rs.next(); // Returns true if the stock list belongs to the user
@@ -676,35 +707,11 @@ public class StockListManager {
         return false; // Stock list does not belong to the user
     }
 
-    // Remove shared stock list if friendship is removed
-    public void removeSharedStockList(int userId, int friendId) {
-        String sql = """
-                DELETE FROM SharedStockList
-                WHERE shared_user_id = ? AND list_id IN (
-                    SELECT list_id
-                    FROM StockList
-                    WHERE user_id = ?
-                )
-                """;
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, friendId);
-            pstmt.setInt(2, userId);
-            pstmt.executeUpdate();
-            System.out.println("Shared stock lists removed successfully!");
-
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
-    }
-
     // Validate the stock list name
     private boolean isValidStockListName(String listName) {
-        // Check if the stock list name is empty or contains invalid characters
-        return listName.trim().isEmpty() || !listName.matches("^[a-zA-Z0-9_ ]+$") ||
-                listName.length() > 100;
+        // Check if the stock list name is valid (e.g., not empty, not too long)
+        return listName == null || listName.trim().isEmpty() ||
+                !listName.matches("^[a-zA-Z0-9_ ]+$") || listName.length() > 50;
     }
 
     // Check if the user can access the stock list

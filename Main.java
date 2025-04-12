@@ -1,14 +1,15 @@
+import managers.*;
+
 import java.io.*;
 import java.sql.*;
 import java.util.*;
-import managers.*;
 
-public class MainTest {
+public class Main {
   // Execute SQL file for creating tables
   private static void executeSqlFile(String sqlFile) {
     try (Connection conn = DatabaseConnection.getConnection();
-        Statement statement = conn.createStatement();
-        BufferedReader reader = new BufferedReader(new FileReader(sqlFile))) {
+         Statement statement = conn.createStatement();
+         BufferedReader reader = new BufferedReader(new FileReader(sqlFile))) {
 
       StringBuilder sql = new StringBuilder();
       String line;
@@ -43,20 +44,19 @@ public class MainTest {
     Scanner scanner = new Scanner(System.in);
     UserManager userManager = new UserManager();
 
-    // Create tables, remove if they exist
-    String create_database_file = "create_database.sql";
-    executeSqlFile(create_database_file);
+//        // Create tables, remove if they exist
+//        String create_database_file = "src/main/java/create_database.sql";
+//        executeSqlFile(create_database_file);
 
     while (true) {
       System.out.println("""
-
-          Welcome to the Portfolio and Stock List Management System!
-
-          1. Register
-          2. Login
-          3. Quit
-          4. View Users (Debugging)
-          """);
+                    
+                    Welcome to the Portfolio and Stock List Management System!
+                    
+                    1. Register
+                    2. Login
+                    3. Quit
+                    """);
       System.out.print("Choose an option: ");
 
       // Prevent users from inputting non-integer values
@@ -82,9 +82,9 @@ public class MainTest {
         case 3:
           System.out.println("Exiting the system. Goodbye!");
           System.exit(0);
-        case 4:
-          userManager.viewAllUsers();
-          break;
+//                case 4:
+//                    UserManager.viewAllUsers();
+//                    break;
         default:
           System.out.println("Invalid option. Please try again.");
       }

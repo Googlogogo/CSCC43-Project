@@ -10,6 +10,7 @@ public class UserManager {
         PortfolioManager portfolioManager = new PortfolioManager();
         StockListManager stockListManager = new StockListManager();
         FriendManager friendManager = new FriendManager();
+        StockManager stockManager = new StockManager();
 
         Scanner scanner = new Scanner(System.in);
         while (true) {
@@ -20,8 +21,9 @@ public class UserManager {
                     1. Manage Portfolios
                     2. Manage Stock Lists
                     3. Manage Friends
-                    4. Manage Account (additional features)
-                    5. Logout
+                    4. Manage Stocks
+                    5. Manage Account (additional features)
+                    6. Logout
                     """);
             System.out.print("Choose an option: ");
 
@@ -46,6 +48,9 @@ public class UserManager {
                     friendManager.friendDashboard(userId);
                     break;
                 case 4:
+                    stockManager.stockDashboard();
+                    break;
+                case 5:
                     System.out.println("""
                             
                             Welcome to Account Management!
@@ -153,7 +158,7 @@ public class UserManager {
                             System.out.println("Invalid option. Try again.");
                     }
                     break;
-                case 5:
+                case 6:
                     System.out.println("Logging out...");
                     return;
                 default:
@@ -345,7 +350,7 @@ public class UserManager {
             System.err.println(e.getMessage());
         }
 
-        return -1;
+        return -1; // Return -1 if no match found
     }
 
     // Check if a user exists
@@ -385,4 +390,25 @@ public class UserManager {
 
         return false; // Return false if no row is found
     }
+
+//    // View all users (debugging purposes)
+//    public static void viewAllUsers() {
+//        String sql = "SELECT * FROM Users";
+//
+//        try (Connection conn = DatabaseConnection.getConnection();
+//             Statement stmt = conn.createStatement();
+//             ResultSet rs = stmt.executeQuery(sql)) {
+//
+//            while (rs.next()) {
+//                System.out.println("User ID: " + rs.getInt("user_id"));
+//                System.out.println("Username: " + rs.getString("username"));
+//                System.out.println("Email: " + rs.getString("email"));
+//                System.out.println("Password: " + rs.getString("password"));
+//                System.out.println("------------------------------");
+//            }
+//
+//        } catch (SQLException e) {
+//            System.err.println(e.getMessage());
+//        }
+//    }
 }

@@ -8,13 +8,12 @@ public class PortfolioManager {
     // Portfolio dashboard
     public void portfolioDashboard(int userId) {
         Scanner scanner = new Scanner(System.in);
-        StockManager stockManager = new StockManager();
 
         while (true) {
             System.out.println("""
-
+                    
                     Welcome to the Portfolio Dashboard!
-
+                    
                     1. Create a New Portfolio
                     2. Get Portfolios Overview
                     3. Rename Portfolio
@@ -24,9 +23,7 @@ public class PortfolioManager {
                     7. Withdraw Cash
                     8. Transfer Cash between Portfolios
                     9. Manage Portfolio Holdings
-                    10. Insert New Daily Stock Information
-                    11. Delete Daily Stock Information
-                    12. Display Portfolio Statistics
+                    10. Display Portfolio Statistics
                     """);
             System.out.println("Type 'exit' to exit the dashboard.");
             System.out.print("Choose an option: ");
@@ -84,23 +81,18 @@ public class PortfolioManager {
                     managePortfolioHoldings(userId);
                     break;
                 case "10":
-                    // Insert new daily stock information
-                    System.out.println("\nInserting new daily stock information...");
-                    stockManager.addStock();
-                    break;
-                case "11":
-                    // Delete daily stock information
-                    System.out.println("\nDeleting daily stock information...");
-                    stockManager.deleteStock();
-                    break;
-                case "12":
-                    // TODO: Display portfolio statistics
                     System.out.println("\nDisplaying portfolio statistics...");
                     System.out.print("Enter portfolio name: ");
                     String name = scanner.nextLine();
-                    // Validate portfolio name
-                    if (invalidPortfolioName(name)) {
-                        System.out.println("Invalid portfolio name!");
+                    int portfolioId = getPortfolioIDbyName(userId, name);
+                    // Check if portfolio exists
+                    if (!portfolioExists(portfolioId)) {
+                        System.out.println("Portfolio does not exist!");
+                        break;
+                    }
+                    // Check if portfolio belongs to the user
+                    if (!isPortfolioOwnedByUser(userId, portfolioId)) {
+                        System.out.println("You do not own this portfolio!");
                         break;
                     }
                     StatisticsManager.handlePortfolioStatistics(userId, name);
@@ -122,13 +114,12 @@ public class PortfolioManager {
         scanner.nextLine(); // Consume newline
 
         // Validate portfolio name
-        if (invalidPortfolioName(name)) {
+        if (isValidPortfolioName(name)) {
             System.out.println("Invalid portfolio name!");
             return;
         }
-
         // Check if portfolio name already exists
-        if (portfolioExists(userId, name)) {
+        if (portfolioExists(getPortfolioIDbyName(userId, name))) {
             System.out.println("Portfolio name already exists! Please choose a different name.");
             return;
         }
@@ -137,7 +128,7 @@ public class PortfolioManager {
         String sql = "INSERT INTO Portfolio (user_id, name, cash_balance) VALUES (?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setString(2, name);
@@ -155,7 +146,7 @@ public class PortfolioManager {
         String sql = "SELECT * FROM Portfolio WHERE user_id = ? ORDER BY portfolio_id ASC";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             ResultSet rs = pstmt.executeQuery();
@@ -187,23 +178,30 @@ public class PortfolioManager {
         // Prompt user for portfolio name
         System.out.print("Enter current portfolio name: ");
         String currentName = scanner.nextLine();
-        System.out.print("Enter new portfolio name: ");
-        String newName = scanner.nextLine();
-
-        // Validate portfolio name
-        if (invalidPortfolioName(currentName) || invalidPortfolioName(newName)) {
-            System.out.println("Invalid portfolio name!");
-            return;
-        }
+        int portfolioId = getPortfolioIDbyName(userId, currentName);
 
         // Check if portfolio exists
-        if (!portfolioExists(userId, currentName)) {
+        if (!portfolioExists(portfolioId)) {
             System.out.println("Portfolio does not exist!");
             return;
         }
+        // Check if portfolio belongs to the user
+        if (!isPortfolioOwnedByUser(userId, portfolioId)) {
+            System.out.println("You do not own this portfolio!");
+            return;
+        }
 
+        // Prompt user for new portfolio name
+        System.out.print("Enter new portfolio name: ");
+        String newName = scanner.nextLine();
+
+        // Validate new portfolio name
+        if (isValidPortfolioName(newName)) {
+            System.out.println("Invalid portfolio name!");
+            return;
+        }
         // Check if new portfolio name already exists
-        if (portfolioExists(userId, newName)) {
+        if (portfolioExists(getPortfolioIDbyName(userId, newName))) {
             System.out.println("Portfolio name already exists! Please choose a different name.");
             return;
         }
@@ -212,7 +210,7 @@ public class PortfolioManager {
         String sql = "UPDATE Portfolio SET name = ? WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, newName);
             pstmt.setInt(2, getPortfolioIDbyName(userId, currentName));
@@ -230,16 +228,24 @@ public class PortfolioManager {
         // Prompt user for portfolio name
         System.out.print("Enter portfolio name to delete: ");
         String name = scanner.nextLine();
+        int portfolioId = getPortfolioIDbyName(userId, name);
 
-        // Validate portfolio name
-        if (invalidPortfolioName(name)) {
-            System.out.println("Invalid portfolio name!");
+        // Check if portfolio exists
+        if (!portfolioExists(portfolioId)) {
+            System.out.println("Portfolio does not exist!");
+            return;
+        }
+        // Check if portfolio belongs to the user
+        if (!isPortfolioOwnedByUser(userId, portfolioId)) {
+            System.out.println("You do not own this portfolio!");
             return;
         }
 
-        // Check if portfolio exists
-        if (!portfolioExists(userId, name)) {
-            System.out.println("Portfolio does not exist!");
+        // Prompt user for confirmation
+        System.out.print("Are you sure you want to delete this portfolio? (y/n): ");
+        String confirmation = scanner.nextLine();
+        if (!confirmation.equalsIgnoreCase("y")) {
+            System.out.println("Portfolio deletion cancelled.");
             return;
         }
 
@@ -248,13 +254,11 @@ public class PortfolioManager {
         String deletePortfolioSql = "DELETE FROM Portfolio WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement deletePortfolioHoldingStmt = conn.prepareStatement(deletePortfolioHoldingSql);
-                PreparedStatement deletePortfolioStmt = conn.prepareStatement(deletePortfolioSql)) {
+             PreparedStatement deletePortfolioHoldingStmt = conn.prepareStatement(deletePortfolioHoldingSql);
+             PreparedStatement deletePortfolioStmt = conn.prepareStatement(deletePortfolioSql)) {
 
             // Start transaction
             conn.setAutoCommit(false);
-
-            int portfolioId = getPortfolioIDbyName(userId, name);
 
             // Delete portfolio holdings
             deletePortfolioHoldingStmt.setInt(1, portfolioId);
@@ -279,25 +283,31 @@ public class PortfolioManager {
         // Prompt user for portfolio name and cash amount
         System.out.print("Enter portfolio name: ");
         String portfolioName = scanner.nextLine();
-        System.out.print("Enter deposit amount: ");
-        double amount = scanner.nextDouble();
-        scanner.nextLine(); // Consume newline
+        int portfolioId = getPortfolioIDbyName(userId, portfolioName);
 
-        // Validate portfolio name
-        if (invalidPortfolioName(portfolioName)) {
-            System.out.println("Invalid portfolio name!");
+        // Check if portfolio exists
+        if (!portfolioExists(portfolioId)) {
+            System.out.println("Portfolio does not exist!");
+            return;
+        }
+        // Check if portfolio belongs to the user
+        if (!isPortfolioOwnedByUser(userId, portfolioId)) {
+            System.out.println("You do not own this portfolio!");
             return;
         }
 
+        System.out.print("Enter deposit amount: ");
+        if (!scanner.hasNextDouble()) {
+            System.out.println("Invalid amount! Please enter a positive value.");
+            scanner.nextLine(); // Consume invalid input
+            return;
+        }
+        double amount = scanner.nextDouble();
+        scanner.nextLine(); // Consume newline
         // Validate amount
         if (amount <= 0) {
             System.out.println("Invalid amount! Please enter a positive value.");
-            return;
-        }
-
-        // Check if portfolio exists
-        if (!portfolioExists(userId, portfolioName)) {
-            System.out.println("Portfolio does not exist!");
+            scanner.nextLine(); // Consume invalid input
             return;
         }
 
@@ -305,7 +315,7 @@ public class PortfolioManager {
         String sql = "UPDATE Portfolio SET cash_balance = cash_balance + ? WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setDouble(1, amount);
             pstmt.setInt(2, getPortfolioIDbyName(userId, portfolioName));
@@ -323,53 +333,25 @@ public class PortfolioManager {
         // Prompt user for portfolio name
         System.out.print("Enter portfolio name: ");
         String portfolioName = scanner.nextLine();
-        // Validate portfolio name
-        if (invalidPortfolioName(portfolioName)) {
-            System.out.println("Invalid portfolio name!");
-            return;
-        }
-        double cashBalance = getCashBalance(userId, portfolioName);
-        if (cashBalance == -3) {
-            System.out.println("Invalid portfolio name!");
-            return;
-        } else if (cashBalance == -2) {
+        int portfolioId = getPortfolioIDbyName(userId, portfolioName);
+
+        // Check if portfolio exists
+        if (!portfolioExists(portfolioId)) {
             System.out.println("Portfolio does not exist!");
             return;
-        } else if (cashBalance == -1) {
+        }
+        // Check if portfolio belongs to the user
+        if (!isPortfolioOwnedByUser(userId, portfolioId)) {
+            System.out.println("You do not own this portfolio!");
+            return;
+        }
+
+        double cashBalance = getCashBalance(userId, portfolioName);
+        if (cashBalance == -1) {
             System.out.println("Unable to retrieve cash balance!");
             return;
         }
         System.out.println("Cash balance of portfolio " + portfolioName + ": $" + cashBalance);
-    }
-
-    // Get cash balance of a portfolio
-    public double getCashBalance(int userId, String portfolioName) {
-        // Validate portfolio name
-        if (invalidPortfolioName(portfolioName))
-            return -3;
-
-        // Check if portfolio exists
-        if (!portfolioExists(userId, portfolioName))
-            return -2;
-
-        // Get cash balance from database
-        String sql = "SELECT cash_balance FROM Portfolio WHERE portfolio_id = ?";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, getPortfolioIDbyName(userId, portfolioName));
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return rs.getDouble("cash_balance");
-            }
-
-        } catch (SQLException e) {
-            System.err.println(e.getMessage());
-        }
-
-        return -1;
     }
 
     // Remove cash from a portfolio
@@ -378,37 +360,37 @@ public class PortfolioManager {
         // Prompt user for portfolio name
         System.out.print("Enter portfolio name: ");
         String portfolioName = scanner.nextLine();
-        System.out.print("Enter withdrawal amount: ");
-        double amount = scanner.nextDouble();
-        scanner.nextLine(); // Consume newline
+        int portfolioId = getPortfolioIDbyName(userId, portfolioName);
 
-        // Validate portfolio name
-        if (invalidPortfolioName(portfolioName)) {
-            System.out.println("Invalid portfolio name!");
+        // Check if portfolio exists
+        if (!portfolioExists(portfolioId)) {
+            System.out.println("Portfolio does not exist!");
+            return;
+        }
+        // Check if portfolio belongs to the user
+        if (!isPortfolioOwnedByUser(userId, portfolioId)) {
+            System.out.println("You do not own this portfolio!");
             return;
         }
 
+        System.out.print("Enter withdrawal amount: ");
+        if (!scanner.hasNextDouble()) {
+            System.out.println("Invalid amount! Please enter a positive value.");
+            scanner.nextLine(); // Consume invalid input
+            return;
+        }
+        double amount = scanner.nextDouble();
+        scanner.nextLine(); // Consume newline
         // Validate amount
         if (amount <= 0) {
             System.out.println("Invalid amount! Please enter a positive value.");
-            return;
-        }
-
-        // Check if portfolio exists
-        if (!portfolioExists(userId, portfolioName)) {
-            System.out.println("Portfolio does not exist!");
+            scanner.nextLine(); // Consume invalid input
             return;
         }
 
         // Check if cash balance is sufficient
         double currentBalance = getCashBalance(userId, portfolioName);
-        if (currentBalance == -3) {
-            System.out.println("Invalid portfolio name!");
-            return;
-        } else if (currentBalance == -2) {
-            System.out.println("Portfolio does not exist!");
-            return;
-        } else if (currentBalance == -1) {
+        if (currentBalance == -1) {
             System.out.println("Unable to retrieve cash balance!");
             return;
         } else if (currentBalance < amount) {
@@ -420,7 +402,7 @@ public class PortfolioManager {
         String sql = "UPDATE Portfolio SET cash_balance = cash_balance - ? WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setDouble(1, amount);
             pstmt.setInt(2, getPortfolioIDbyName(userId, portfolioName));
@@ -438,15 +420,30 @@ public class PortfolioManager {
         // Prompt user for portfolio names and cash amount
         System.out.print("Enter source portfolio name: ");
         String sourcePortfolioName = scanner.nextLine();
+        int sourcePortfolioId = getPortfolioIDbyName(userId, sourcePortfolioName);
+
+        // Check if source portfolio exists
+        if (!portfolioExists(sourcePortfolioId)) {
+            System.out.println("Source portfolio does not exist!");
+            return;
+        }
+        // Check if source portfolio belongs to the user
+        if (!isPortfolioOwnedByUser(userId, sourcePortfolioId)) {
+            System.out.println("You do not own this portfolio!");
+            return;
+        }
+
         System.out.print("Enter destination portfolio name: ");
         String destPortfolioName = scanner.nextLine();
-        System.out.print("Enter transfer amount: ");
-        double amount = scanner.nextDouble();
-        scanner.nextLine(); // Consume newline
-
-        // Validate portfolio names
-        if (invalidPortfolioName(sourcePortfolioName) || invalidPortfolioName(destPortfolioName)) {
-            System.out.println("Invalid portfolio name!");
+        int destPortfolioId = getPortfolioIDbyName(userId, destPortfolioName);
+        // Check if destination portfolio exists
+        if (!portfolioExists(destPortfolioId)) {
+            System.out.println("Destination portfolio does not exist!");
+            return;
+        }
+        // Check if destination portfolio belongs to the user
+        if (!isPortfolioOwnedByUser(userId, destPortfolioId)) {
+            System.out.println("You do not own this portfolio!");
             return;
         }
 
@@ -455,31 +452,25 @@ public class PortfolioManager {
             System.out.println("Source and destination portfolios cannot be the same!");
             return;
         }
-        // Check if portfolios exist
-        if (!portfolioExists(userId, sourcePortfolioName)) {
-            System.out.println("Source portfolio does not exist!");
-            return;
-        }
-        if (!portfolioExists(userId, destPortfolioName)) {
-            System.out.println("Destination portfolio does not exist!");
-            return;
-        }
 
+        System.out.print("Enter transfer amount: ");
+        if (!scanner.hasNextDouble()) {
+            System.out.println("Invalid amount! Please enter a positive value.");
+            scanner.nextLine(); // Consume invalid input
+            return;
+        }
+        double amount = scanner.nextDouble();
+        scanner.nextLine(); // Consume newline
         // Validate amount
         if (amount <= 0) {
             System.out.println("Invalid amount! Please enter a positive value.");
+            scanner.nextLine(); // Consume invalid input
             return;
         }
 
         // Check if cash balance is sufficient
         double currentBalance = getCashBalance(userId, sourcePortfolioName);
-        if (currentBalance == -3) {
-            System.out.println("Invalid source portfolio name!");
-            return;
-        } else if (currentBalance == -2) {
-            System.out.println("Source portfolio does not exist!");
-            return;
-        } else if (currentBalance == -1) {
+        if (currentBalance == -1) {
             System.out.println("Unable to retrieve cash balance!");
             return;
         } else if (currentBalance < amount) {
@@ -492,8 +483,8 @@ public class PortfolioManager {
         String depositSql = "UPDATE Portfolio SET cash_balance = cash_balance + ? WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt1 = conn.prepareStatement(withdrawSql);
-                PreparedStatement pstmt2 = conn.prepareStatement(depositSql)) {
+             PreparedStatement pstmt1 = conn.prepareStatement(withdrawSql);
+             PreparedStatement pstmt2 = conn.prepareStatement(depositSql)) {
 
             pstmt1.setDouble(1, amount);
             pstmt1.setInt(2, getPortfolioIDbyName(userId, sourcePortfolioName));
@@ -511,8 +502,7 @@ public class PortfolioManager {
     // Manage portfolio holdings
     public void managePortfolioHoldings(int userId) {
         // Display portfolios owned by the user
-        if (!displayUserPortfolios(userId))
-            return;
+        if (!canDisplayUserPortfolios(userId)) return;
 
         Scanner scanner = new Scanner(System.in);
         System.out.print("\nEnter the ID of the portfolio to manage: ");
@@ -526,13 +516,8 @@ public class PortfolioManager {
         portfolioId = scanner.nextInt();
         scanner.nextLine(); // Consume newline
 
-        // Validate portfolio ID
-        if (getPortfolioNamebyID(portfolioId) == null) {
-            System.out.println("Invalid portfolio ID!");
-            return;
-        }
         // Check if portfolio exists
-        if (!portfolioExists(userId, getPortfolioNamebyID(portfolioId))) {
+        if (!portfolioExists(portfolioId)) {
             System.out.println("Portfolio does not exist!");
             return;
         }
@@ -549,10 +534,10 @@ public class PortfolioManager {
     }
 
     // Display portfolios owned by the user
-    private boolean displayUserPortfolios(int userId) {
+    private boolean canDisplayUserPortfolios(int userId) {
         String checkSql = "SELECT * FROM Portfolio WHERE user_id = ? ORDER BY portfolio_id ASC";
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(checkSql)) {
+             PreparedStatement pstmt = conn.prepareStatement(checkSql)) {
 
             pstmt.setInt(1, userId);
             ResultSet rs = pstmt.executeQuery();
@@ -577,15 +562,36 @@ public class PortfolioManager {
         return false; // Cannot display portfolios
     }
 
-    // Check if a portfolio exists
-    private boolean portfolioExists(int userId, String name) {
-        String sql = "SELECT * FROM Portfolio WHERE user_id = ? AND name = ?";
+    // Get cash balance of a portfolio
+    public double getCashBalance(int userId, String portfolioName) {
+        // Get cash balance from database
+        String sql = "SELECT cash_balance FROM Portfolio WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, userId);
-            pstmt.setString(2, name);
+            pstmt.setInt(1, getPortfolioIDbyName(userId, portfolioName));
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getDouble("cash_balance");
+            }
+
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+
+        return -1;
+    }
+
+    // Check if a portfolio exists
+    private boolean portfolioExists(int portfolioId) {
+        String sql = "SELECT * FROM Portfolio WHERE portfolio_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, portfolioId);
             ResultSet rs = pstmt.executeQuery();
 
             return rs.next(); // Returns true if a portfolio exists
@@ -597,18 +603,12 @@ public class PortfolioManager {
         return false; // Portfolio does not exist
     }
 
-    // Portfolio name validation
-    private boolean invalidPortfolioName(String name) {
-        // Check if the name is empty, contains invalid characters, or exceeds length
-        return name.isEmpty() || !name.matches("[a-zA-Z0-9_ ]+") || name.length() > 50;
-    }
-
     // Get portfolio ID by name
-    public int getPortfolioIDbyName(int userId, String name) {
+    public static int getPortfolioIDbyName(int userId, String name) {
         String sql = "SELECT portfolio_id FROM Portfolio WHERE user_id = ? AND name = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setString(2, name);
@@ -626,11 +626,11 @@ public class PortfolioManager {
     }
 
     // Get portfolio name by ID
-    public String getPortfolioNamebyID(int portfolioId) {
+    public static String getPortfolioNamebyID(int portfolioId) {
         String sql = "SELECT name FROM Portfolio WHERE portfolio_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, portfolioId);
             ResultSet rs = pstmt.executeQuery();
@@ -642,7 +642,32 @@ public class PortfolioManager {
         } catch (SQLException e) {
             System.err.println(e.getMessage());
         }
-
         return null;
+    }
+
+    // Portfolio name validation
+    private boolean isValidPortfolioName(String name) {
+        // Check if the name is empty, contains invalid characters, or exceeds length
+        return name.trim().isEmpty() || !name.matches("[a-zA-Z0-9_ ]+") || name.length() > 50;
+    }
+
+    // Check if portfolio belongs to the user
+    public boolean isPortfolioOwnedByUser(int userId, int portfolioId) {
+        String sql = "SELECT * FROM Portfolio WHERE user_id = ? AND portfolio_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, userId);
+            pstmt.setInt(2, portfolioId);
+            ResultSet rs = pstmt.executeQuery();
+
+            return rs.next(); // Returns true if the portfolio belongs to the user
+
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+
+        return false; // Portfolio does not belong to the user
     }
 }

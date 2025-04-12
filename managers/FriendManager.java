@@ -11,9 +11,9 @@ public class FriendManager {
 
         while (true) {
             System.out.println("""
-
+                    
                     Welcome to the Friends Dashboard!
-
+                    
                     1. Add friend
                     2. View existing friends
                     3. View incoming friend requests
@@ -76,7 +76,7 @@ public class FriendManager {
         String sql = "SELECT user_id FROM Users WHERE username = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, friendUsername);
             ResultSet rs = pstmt.executeQuery();
@@ -107,7 +107,7 @@ public class FriendManager {
                 "UNION SELECT requester_id FROM Friend WHERE receiver_id = ? AND status = 'accepted')";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userID);
             pstmt.setInt(2, userID);
@@ -116,7 +116,7 @@ public class FriendManager {
             System.out.println("\nExisting Friends:");
             if (!rs.isBeforeFirst()) {
                 System.out.println("You have no friends yet.");
-            } else {
+            } else{
                 while (rs.next()) {
                     System.out.println("Friend: " + rs.getString("username"));
                 }
@@ -133,7 +133,7 @@ public class FriendManager {
                 "(SELECT requester_id FROM Friend WHERE receiver_id = ? AND status = 'pending')";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(incoming_sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(incoming_sql)) {
 
             pstmt.setInt(1, userID);
             ResultSet rs = pstmt.executeQuery();
@@ -172,7 +172,7 @@ public class FriendManager {
                 "(SELECT receiver_id FROM Friend WHERE requester_id = ? AND status = 'pending')";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(outgoing_sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(outgoing_sql)) {
 
             pstmt.setInt(1, userID);
             ResultSet rs = pstmt.executeQuery();
@@ -209,22 +209,23 @@ public class FriendManager {
             return;
         }
 
-        // SQL query to delete the friend
-        String sql = """
-                DELETE FROM Friend
+        // SQL query to update the friend status to 'denied' and set the last_request_time
+        String updateSql = """
+                UPDATE Friend
+                SET status = 'denied', last_request_time = CURRENT_TIMESTAMP
                 WHERE ((requester_id = ? AND receiver_id = ?) OR (requester_id = ? AND receiver_id = ?))
                 AND status = 'accepted'
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(updateSql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setInt(2, friendId);
             pstmt.setInt(3, friendId);
             pstmt.setInt(4, userId);
             pstmt.executeUpdate();
-            System.out.println("Friend deleted!");
+            System.out.println("Friend deleted! A 5-minute cooldown has been applied.");
         } catch (SQLException e) {
             System.err.println(e.getMessage());
         }
@@ -246,7 +247,7 @@ public class FriendManager {
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement checkPstmt = conn.prepareStatement(checkSql)) {
+             PreparedStatement checkPstmt = conn.prepareStatement(checkSql)) {
 
             checkPstmt.setInt(1, userId);
             checkPstmt.setInt(2, friendId);
@@ -292,7 +293,7 @@ public class FriendManager {
         String write_sql = "INSERT INTO Friend (requester_id, receiver_id, status) VALUES (?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(update_sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(update_sql)) {
 
             pstmt.setString(1, accept ? "accepted" : "denied");
             pstmt.setInt(2, friendId);
@@ -300,7 +301,6 @@ public class FriendManager {
             pstmt.executeUpdate();
             System.out.println("Friend request " + (accept ? "accepted!" : "denied!"));
 
-            // TODO: If friend request is accepted, add the user as a friend?
             if (accept) {
                 try (PreparedStatement pstmt2 = conn.prepareStatement(write_sql)) {
                     pstmt2.setInt(1, userId);
@@ -327,7 +327,7 @@ public class FriendManager {
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             pstmt.setInt(2, friendId);
@@ -358,7 +358,7 @@ public class FriendManager {
                 """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, friendId);
             pstmt.setInt(2, userId);

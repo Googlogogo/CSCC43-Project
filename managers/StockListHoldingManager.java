@@ -86,9 +86,10 @@ public class StockListHoldingManager {
 
         // Check if the stock already exists in the user's stock list
         if (checkStockInList(listId, symbol)) {
-            System.out.println("Stock already exists in the list! Do you want to update the shares? (yes/no)");
-            String response = scanner.nextLine().toLowerCase();
-            if (response.equalsIgnoreCase("yes")) {
+            System.out.print("Stock already exists in the list! Do you want to update the shares? (y/n) ");
+            scanner.nextLine(); // Consume the newline character
+            String response = scanner.nextLine();
+            if (response.equalsIgnoreCase("y")) {
                 // Update the shares for the existing stock
                 String sql = "UPDATE StockListHolding SET shares = shares + ? WHERE list_id = ? AND symbol = ?";
                 try (Connection conn = DatabaseConnection.getConnection();
@@ -102,6 +103,9 @@ public class StockListHoldingManager {
                 } catch (SQLException e) {
                     System.err.println(e.getMessage());
                 }
+            } else {
+                System.out.println("Stock not added.");
+                return;
             }
             return;
         }

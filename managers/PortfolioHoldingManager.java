@@ -93,7 +93,8 @@ public class PortfolioHoldingManager {
 
         // Check if the stock already exists in the user's portfolio
         if (checkStockInPortfolio(portfolioId, symbol)) {
-            System.out.println("Stock already exists in your portfolio! Do you want to update the number of shares? (yes/no)");
+            System.out.print("Stock already exists in your portfolio! Do you want to update the number of shares? (yes/no)");
+            scanner.nextLine(); // Clear the newline character
             String response = scanner.nextLine().toLowerCase();
             if (response.equalsIgnoreCase("yes")) {
                 // Update the number of shares in the user's portfolio
@@ -111,6 +112,9 @@ public class PortfolioHoldingManager {
                 } catch (SQLException e) {
                     System.err.println(e.getMessage());
                 }
+            } else {
+                System.out.println("Stock not added to portfolio.");
+                return;
             }
             return;
         }
@@ -243,6 +247,40 @@ public class PortfolioHoldingManager {
             updateStmt.executeUpdate();
 
             System.out.println("Stock shares updated successfully!");
+
+            // Check if shares is 0 after selling
+            String checkSql = "SELECT shares FROM PortfolioHolding WHERE portfolio_id = ? AND symbol = ?";
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+                checkStmt.setInt(1, portfolioId);
+                checkStmt.setString(2, symbol);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (rs.next()) {
+                    int remainingShares = rs.getInt("shares");
+                    if (remainingShares == 0) {
+                        // Prompt user for confirmation to remove the stock from the portfolio
+                        System.out.print("You have sold all shares of " + symbol + ". Do you want to remove it from your portfolio? (y/n) ");
+                        String response = scanner.nextLine();
+                        if (!response.equalsIgnoreCase("y")) {
+                            System.out.println("Stock not removed from portfolio.");
+                            return;
+                        }
+                        // Remove the stock from the user's portfolio
+                        String deleteSql = "DELETE FROM PortfolioHolding WHERE portfolio_id = ? AND symbol = ?";
+                        try (PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
+                            deleteStmt.setInt(1, portfolioId);
+                            deleteStmt.setString(2, symbol);
+                            deleteStmt.executeUpdate();
+                            System.out.println("Stock removed from portfolio successfully!");
+                        } catch (SQLException e) {
+                            System.err.println(e.getMessage());
+                        }
+                    }
+                }
+
+            } catch (SQLException e) {
+                System.err.println(e.getMessage());
+            }
 
         } catch (SQLException e) {
             System.err.println(e.getMessage());

@@ -1,7 +1,3 @@
--- Questions:
--- 1. need to add constraints for the tables?
--- 2. need to add triggers, indexes for the tables?
-
 -- Remove this line in the end
 DROP TABLE IF EXISTS
     Users,
@@ -17,7 +13,7 @@ DROP TABLE IF EXISTS
     Review
 CASCADE;
 
--- Users table, to distinguish between User keyword in SQL
+-- Users table, to distinguish from the User keyword in SQL
 CREATE TABLE Users (
     user_id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL CHECK (LENGTH(username) BETWEEN 3 AND 50),
@@ -44,6 +40,12 @@ CREATE TABLE Stock (
     company_name VARCHAR(100) NOT NULL
 );
 
+-- Insert stocks in StockHistory table to Stock table, from an external CSV file consisting of all stocks
+COPY Stock (symbol, company_name)
+FROM '/Users/gogo/C43ProjectTest/src/main/java/constituents.csv'
+DELIMITER ','
+CSV HEADER;
+
 -- PortfolioHolding table to store the stocks in each portfolio
 CREATE TABLE PortfolioHolding (
     portfolio_id INT,
@@ -69,134 +71,6 @@ CREATE TABLE StockList (
         ON UPDATE CASCADE
 );
 
--- Stats table to store the statistics of portfolios
-CREATE TABLE Stats (
-    portfolio_id INT,
-    list_id INT,
-    cov NUMERIC(10, 4),
-    beta NUMERIC(10, 4),
-    matrix NUMERIC(10, 4),
-    PRIMARY KEY (portfolio_id, list_id),
-    FOREIGN KEY (portfolio_id) REFERENCES Portfolio(portfolio_id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    FOREIGN KEY (list_id) REFERENCES StockList(list_id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
-);
-
--- Insert stocks in StockHistory table to Stock table (partial)
-INSERT INTO Stock (symbol, company_name)
-VALUES
-    ('AAPL', 'Apple Inc.'),
-    ('MSFT', 'Microsoft Corporation'),
-    ('AMZN', 'Amazon.com Inc.'),
-    ('NVDA', 'NVIDIA Corporation'),
-    ('GOOGL', 'Alphabet Inc. Class A'),
-    ('GOOG', 'Alphabet Inc. Class C'),
-    ('META', 'Meta Platforms Inc.'),
-    ('BRK.B', 'Berkshire Hathaway Inc. Class B'),
-    ('TSLA', 'Tesla Inc.'),
-    ('UNH', 'UnitedHealth Group Inc.'),
-    ('LLY', 'Eli Lilly and Company'),
-    ('JPM', 'JPMorgan Chase & Co.'),
-    ('V', 'Visa Inc.'),
-    ('PG', 'Procter & Gamble Company'),
-    ('XOM', 'Exxon Mobil Corporation'),
-    ('MA', 'Mastercard Incorporated'),
-    ('AVGO', 'Broadcom Inc.'),
-    ('HD', 'Home Depot Inc.'),
-    ('CVX', 'Chevron Corporation'),
-    ('COST', 'Costco Wholesale Corporation'),
-    ('MRK', 'Merck & Co. Inc.'),
-    ('ABBV', 'AbbVie Inc.'),
-    ('PEP', 'PepsiCo Inc.'),
-    ('KO', 'Coca-Cola Company'),
-    ('ADBE', 'Adobe Inc.'),
-    ('WMT', 'Walmart Inc.'),
-    ('CRM', 'Salesforce Inc.'),
-    ('BAC', 'Bank of America Corporation'),
-    ('TMO', 'Thermo Fisher Scientific Inc.'),
-    ('MCD', 'McDonald''s Corporation'),
-    ('CSCO', 'Cisco Systems Inc.'),
-    ('ACN', 'Accenture plc'),
-    ('ABT', 'Abbott Laboratories'),
-    ('DHR', 'Danaher Corporation'),
-    ('NFLX', 'Netflix Inc.'),
-    ('AMD', 'Advanced Micro Devices Inc.'),
-    ('DIS', 'Walt Disney Company'),
-    ('CMCSA', 'Comcast Corporation'),
-    ('VZ', 'Verizon Communications Inc.'),
-    ('IBM', 'International Business Machines Corporation'),
-    ('INTC', 'Intel Corporation'),
-    ('PFE', 'Pfizer Inc.'),
-    ('NKE', 'Nike Inc.'),
-    ('TXN', 'Texas Instruments Incorporated'),
-    ('PM', 'Philip Morris International Inc.'),
-    ('ORCL', 'Oracle Corporation'),
-    ('RTX', 'Raytheon Technologies Corporation'),
-    ('NEE', 'NextEra Energy Inc.'),
-    ('JNJ', 'Johnson & Johnson'),
-    ('HON', 'Honeywell International Inc.'),
-    ('UPS', 'United Parcel Service Inc.'),
-    ('T', 'AT&T Inc.'),
-    ('CAT', 'Caterpillar Inc.'),
-    ('WFC', 'Wells Fargo & Company'),
-    ('LOW', 'Lowe''s Companies Inc.'),
-    ('MS', 'Morgan Stanley'),
-    ('SPGI', 'S&P Global Inc.'),
-    ('QCOM', 'QUALCOMM Incorporated'),
-    ('GS', 'Goldman Sachs Group Inc.'),
-    ('MDT', 'Medtronic plc'),
-    ('BMY', 'Bristol-Myers Squibb Company'),
-    ('INTU', 'Intuit Inc.'),
-    ('SCHW', 'Charles Schwab Corporation'),
-    ('CVS', 'CVS Health Corporation'),
-    ('AXP', 'American Express Company'),
-    ('BLK', 'BlackRock Inc.'),
-    ('AMGN', 'Amgen Inc.'),
-    ('AMT', 'American Tower Corporation'),
-    ('COP', 'ConocoPhillips'),
-    ('DE', 'Deere & Company'),
-    ('UNP', 'Union Pacific Corporation'),
-    ('LIN', 'Linde plc'),
-    ('C', 'Citigroup Inc.'),
-    ('BA', 'Boeing Company'),
-    ('GILD', 'Gilead Sciences Inc.'),
-    ('ISRG', 'Intuitive Surgical Inc.'),
-    ('ADI', 'Analog Devices Inc.'),
-    ('SBUX', 'Starbucks Corporation'),
-    ('MDLZ', 'Mondelez International Inc.'),
-    ('BKNG', 'Booking Holdings Inc.'),
-    ('AMAT', 'Applied Materials Inc.'),
-    ('MMC', 'Marsh & McLennan Companies Inc.'),
-    ('TJX', 'TJX Companies Inc.'),
-    ('PLD', 'Prologis Inc.'),
-    ('VRTX', 'Vertex Pharmaceuticals Incorporated'),
-    ('SYK', 'Stryker Corporation'),
-    ('MO', 'Altria Group Inc.'),
-    ('GE', 'General Electric Company'),
-    ('ZTS', 'Zoetis Inc.'),
-    ('NOW', 'ServiceNow Inc.'),
-    ('DUK', 'Duke Energy Corporation'),
-    ('ADP', 'Automatic Data Processing Inc.'),
-    ('SO', 'Southern Company'),
-    ('BDX', 'Becton, Dickinson and Company'),
-    ('LRCX', 'Lam Research Corporation'),
-    ('ELV', 'Elevance Health Inc.'),
-    ('REGN', 'Regeneron Pharmaceuticals Inc.'),
-    ('SLB', 'Schlumberger Limited'),
-    ('CB', 'Chubb Limited'),
-    ('EOG', 'EOG Resources Inc.'),
-    ('CME', 'CME Group Inc.'),
-    ('CI', 'Cigna Group'),
-    ('PGR', 'Progressive Corporation'),
-    ('ITW', 'Illinois Tool Works Inc.'),
-    ('TGT', 'Target Corporation'),
-    ('MPC', 'Marathon Petroleum Corporation');
-
--- StockHistory table to store historical data of stocks
--- Question: do we need to store the source of data: original or user_added?
 CREATE TABLE StockHistory (
     timestamp DATE,
     open DECIMAL(10, 2) CHECK (open >= 0),
@@ -206,10 +80,6 @@ CREATE TABLE StockHistory (
     volume BIGINT CHECK (volume >= 0),
     symbol VARCHAR(10),
     PRIMARY KEY (symbol, timestamp)
--- Cannot use the same name as the column in Stock table because Stock table doesn't contain all symbols in StockHistory
---    FOREIGN KEY (symbol) REFERENCES Stock(symbol)
---        ON DELETE CASCADE
---        ON UPDATE CASCADE
 );
 
 -- Load all records from CSV file into the StockHistory table
@@ -217,8 +87,6 @@ COPY StockHistory (timestamp, open, high, low, close, volume, symbol)
 FROM '/Users/gogo/C43ProjectTest/src/main/java/SP500History.csv'
 DELIMITER ','
 CSV HEADER;
-
-
 
 -- SharedStockList table to store the shared stock lists
 CREATE TABLE SharedStockList (
@@ -277,3 +145,22 @@ CREATE TABLE Review (
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
+
+-- Create a trigger to delete friendships after 5 minutes if status is 'denied'
+CREATE OR REPLACE FUNCTION delete_denied_friendships()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM Friend
+    WHERE ((requester_id = NEW.requester_id AND receiver_id = NEW.receiver_id)
+           OR (requester_id = NEW.receiver_id AND receiver_id = NEW.requester_id))
+      AND status = 'denied'
+      AND last_request_time <= CURRENT_TIMESTAMP - INTERVAL '5 minutes';
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_delete_denied_friendships
+AFTER UPDATE ON Friend
+FOR EACH ROW
+WHEN (NEW.status = 'denied')
+EXECUTE FUNCTION delete_denied_friendships();
