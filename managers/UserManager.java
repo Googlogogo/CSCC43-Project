@@ -390,25 +390,4 @@ public class UserManager {
 
         return false; // Return false if no row is found
     }
-
-//    // View all users (debugging purposes)
-//    public static void viewAllUsers() {
-//        String sql = "SELECT * FROM Users";
-//
-//        try (Connection conn = DatabaseConnection.getConnection();
-//             Statement stmt = conn.createStatement();
-//             ResultSet rs = stmt.executeQuery(sql)) {
-//
-//            while (rs.next()) {
-//                System.out.println("User ID: " + rs.getInt("user_id"));
-//                System.out.println("Username: " + rs.getString("username"));
-//                System.out.println("Email: " + rs.getString("email"));
-//                System.out.println("Password: " + rs.getString("password"));
-//                System.out.println("------------------------------");
-//            }
-//
-//        } catch (SQLException e) {
-//            System.err.println(e.getMessage());
-//        }
-//    }
 }

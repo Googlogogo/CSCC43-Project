@@ -3,7 +3,7 @@ package managers;
 import java.sql.*;
 
 public class DatabaseConnection {
-    // TODO: To be modified
+    // Note: In our case, we used local database and replacing the URL, USER, and PASSWORD with local values.
     private static final String URL = "URL";
     private static final String USER = "USER";
     private static final String PASSWORD = "PASSWORD";

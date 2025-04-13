@@ -44,7 +44,7 @@ public class Main {
     Scanner scanner = new Scanner(System.in);
     UserManager userManager = new UserManager();
 
-//        // Create tables, remove if they exist
+//        // Create tables for our database, commented once the database is created
 //        String create_database_file = "src/main/java/create_database.sql";
 //        executeSqlFile(create_database_file);
 
@@ -82,9 +82,6 @@ public class Main {
         case 3:
           System.out.println("Exiting the system. Goodbye!");
           System.exit(0);
-//                case 4:
-//                    UserManager.viewAllUsers();
-//                    break;
         default:
           System.out.println("Invalid option. Please try again.");
       }
