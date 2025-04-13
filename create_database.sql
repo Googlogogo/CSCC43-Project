@@ -42,7 +42,7 @@ CREATE TABLE Stock (
 
 -- Insert stocks in StockHistory table to Stock table, from an external CSV file consisting of all stocks
 COPY Stock (symbol, company_name)
-FROM '/Users/gogo/C43ProjectTest/src/main/java/constituents.csv'
+FROM 'constituents.csv' -- To be replaced with the actual path to the CSV file
 DELIMITER ','
 CSV HEADER;
 
@@ -84,7 +84,7 @@ CREATE TABLE StockHistory (
 
 -- Load all records from CSV file into the StockHistory table
 COPY StockHistory (timestamp, open, high, low, close, volume, symbol)
-FROM '/Users/gogo/C43ProjectTest/src/main/java/SP500History.csv'
+FROM 'SP500History.csv' -- To be replaced with the actual path to the CSV file
 DELIMITER ','
 CSV HEADER;
 
